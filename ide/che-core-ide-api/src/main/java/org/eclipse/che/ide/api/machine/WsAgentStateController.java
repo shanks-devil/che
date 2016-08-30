@@ -19,13 +19,18 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.web.bindery.event.shared.EventBus;
 
-import org.eclipse.che.ide.api.machine.events.WsAgentStateEvent;
 import org.eclipse.che.api.promises.client.Operation;
 import org.eclipse.che.api.promises.client.OperationException;
 import org.eclipse.che.api.promises.client.Promise;
 import org.eclipse.che.api.promises.client.PromiseError;
 import org.eclipse.che.api.promises.client.callback.AsyncPromiseHelper;
+import org.eclipse.che.api.workspace.shared.dto.WorkspaceAgentHealthStateDto;
+import org.eclipse.che.api.workspace.shared.dto.WorkspaceDto;
+import org.eclipse.che.ide.api.machine.events.WsAgentStateEvent;
+import org.eclipse.che.ide.api.workspace.WorkspaceServiceClient;
 import org.eclipse.che.ide.rest.AsyncRequestFactory;
+import org.eclipse.che.ide.rest.DtoUnmarshallerFactory;
+import org.eclipse.che.ide.rest.RestContext;
 import org.eclipse.che.ide.rest.RestServiceInfo;
 import org.eclipse.che.ide.rest.StringUnmarshaller;
 import org.eclipse.che.ide.ui.loaders.initialization.InitialLoadingInfo;
@@ -39,13 +44,14 @@ import org.eclipse.che.ide.websocket.events.ConnectionOpenedHandler;
 import org.eclipse.che.ide.websocket.events.WebSocketClosedEvent;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import static com.google.common.collect.Lists.newArrayList;
-import static java.util.Collections.emptyList;
+import static org.eclipse.che.api.promises.client.callback.PromiseHelper.newCallback;
+import static org.eclipse.che.ide.MimeType.APPLICATION_JSON;
 import static org.eclipse.che.ide.api.machine.WsAgentState.STARTED;
 import static org.eclipse.che.ide.api.machine.WsAgentState.STOPPED;
+import static org.eclipse.che.ide.rest.HTTPHeader.ACCEPT;
 import static org.eclipse.che.ide.ui.loaders.initialization.InitialLoadingInfo.Operations.WS_AGENT_BOOTING;
 import static org.eclipse.che.ide.ui.loaders.initialization.OperationInfo.Status.IN_PROGRESS;
 import static org.eclipse.che.ide.ui.loaders.initialization.OperationInfo.Status.SUCCESS;
@@ -57,9 +63,12 @@ import static org.eclipse.che.ide.ui.loaders.initialization.OperationInfo.Status
 @Singleton
 public class WsAgentStateController implements ConnectionOpenedHandler, ConnectionClosedHandler, ConnectionErrorHandler {
 
-    private final EventBus            eventBus;
-    private final MessageBusProvider  messageBusProvider;
-    private final InitialLoadingInfo  initialLoadingInfo;
+    private final EventBus               eventBus;
+    private final WorkspaceServiceClient workspaceServiceClient;
+    private final MessageBusProvider     messageBusProvider;
+    private final DtoUnmarshallerFactory dtoUnmarshallerFactory;
+    private final InitialLoadingInfo initialLoadingInfo;
+    private final String              restContext;
     private final LoaderPresenter     loader;
     private final AsyncRequestFactory asyncRequestFactory;
     private       DevMachine          devMachine;
@@ -67,21 +76,27 @@ public class WsAgentStateController implements ConnectionOpenedHandler, Connecti
     //not used now added it for future if it we will have possibility check that service available for client call
     private final List<RestServiceInfo> availableServices;
 
-    private MessageBus                messageBus;
-    private WsAgentState              state;
+    private MessageBus   messageBus;
+    private WsAgentState state;
     private List<AsyncCallback<MessageBus>> messageBusCallbacks = newArrayList();
     private List<AsyncCallback<DevMachine>> devMachineCallbacks = newArrayList();
 
     @Inject
-    public WsAgentStateController(EventBus eventBus,
+    public WsAgentStateController(@RestContext String restContext,
+                                  EventBus eventBus,
                                   LoaderPresenter loader,
+                                  WorkspaceServiceClient workspaceServiceClient,
                                   MessageBusProvider messageBusProvider,
                                   AsyncRequestFactory asyncRequestFactory,
+                                  DtoUnmarshallerFactory dtoUnmarshallerFactory,
                                   InitialLoadingInfo initialLoadingInfo) {
+        this.restContext = restContext;
         this.loader = loader;
         this.eventBus = eventBus;
+        this.workspaceServiceClient = workspaceServiceClient;
         this.messageBusProvider = messageBusProvider;
         this.asyncRequestFactory = asyncRequestFactory;
+        this.dtoUnmarshallerFactory = dtoUnmarshallerFactory;
         this.initialLoadingInfo = initialLoadingInfo;
         this.availableServices = new ArrayList<>();
     }
@@ -97,6 +112,22 @@ public class WsAgentStateController implements ConnectionOpenedHandler, Connecti
     public void onClose(WebSocketClosedEvent event) {
         Log.info(getClass(), "Test WS connection closed with code " + event.getCode() + " reason: " + event.getReason());
         if (state.equals(STARTED)) {
+            final String url = restContext + "/workspace-agent-health/" + devMachine.getWorkspace();
+            asyncRequestFactory.createGetRequest(url)
+                               .header(ACCEPT, APPLICATION_JSON)
+                               .send(dtoUnmarshallerFactory.newUnmarshaller(WorkspaceAgentHealthStateDto.class)).then(
+                    new Operation<WorkspaceAgentHealthStateDto>() {
+                        @Override
+                        public void apply(WorkspaceAgentHealthStateDto arg) throws OperationException {
+                            Log.info(getClass(), arg.toString());
+
+                        }
+                    }).catchError(new Operation<PromiseError>() {
+                @Override
+                public void apply(PromiseError arg) throws OperationException {
+
+                }
+            });
             state = STOPPED;
             eventBus.fireEvent(WsAgentStateEvent.createWsAgentStoppedEvent());
         }
@@ -132,15 +163,15 @@ public class WsAgentStateController implements ConnectionOpenedHandler, Connecti
         loader.hide();
 
         for (AsyncCallback<MessageBus> callback : messageBusCallbacks) {
-        	callback.onSuccess(messageBus);
-		}
+            callback.onSuccess(messageBus);
+        }
         messageBusCallbacks.clear();
 
         for (AsyncCallback<DevMachine> callback : devMachineCallbacks) {
-        	callback.onSuccess(devMachine);
+            callback.onSuccess(devMachine);
         }
         devMachineCallbacks.clear();
-        
+
         eventBus.fireEvent(WsAgentStateEvent.createWsAgentStartedEvent());
     }
 
