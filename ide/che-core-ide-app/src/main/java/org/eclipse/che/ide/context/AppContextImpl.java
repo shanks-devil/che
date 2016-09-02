@@ -202,15 +202,15 @@ public class AppContextImpl implements AppContext,
         this.devMachine = devMachine;
 
         resourceManager = resourceManagerFactory.newResourceManager(devMachine);
-        resourceManager.getWorkspaceProjects().then(new Operation<Project[]>() {
-            @Override
-            public void apply(Project[] projects) throws OperationException {
-                AppContextImpl.this.projects = projects;
-                java.util.Arrays.sort(AppContextImpl.this.projects, ResourcePathComparator.getInstance());
-                eventBus.fireEvent(new WorkspaceReadyEvent(projects));
-                appStateManager.get().restoreWorkspaceState(getWorkspaceId());
-            }
-        });
+//        resourceManager.getWorkspaceProjects().then(new Operation<Project[]>() {
+//            @Override
+//            public void apply(Project[] projects) throws OperationException {
+//                AppContextImpl.this.projects = projects;
+//                java.util.Arrays.sort(AppContextImpl.this.projects, ResourcePathComparator.getInstance());
+//                eventBus.fireEvent(new WorkspaceReadyEvent(projects));
+//                appStateManager.get().restoreWorkspaceState(getWorkspaceId());
+//            }
+//        });
     }
 
     @Override

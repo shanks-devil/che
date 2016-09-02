@@ -13,7 +13,10 @@ package org.eclipse.che.ide.projecttype;
 import com.google.gwt.core.client.Callback;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import com.google.web.bindery.event.shared.EventBus;
 
+import org.eclipse.che.ide.api.machine.events.WsAgentStateEvent;
+import org.eclipse.che.ide.api.machine.events.WsAgentStateHandler;
 import org.eclipse.che.ide.api.project.ProjectTypeServiceClient;
 import org.eclipse.che.api.project.shared.dto.ProjectTypeDto;
 import org.eclipse.che.api.promises.client.Operation;
@@ -32,14 +35,17 @@ import java.util.List;
 @Singleton
 public class ProjectTypeComponent implements WsAgentComponent {
 
+    private final EventBus eventBus;
     private final ProjectTypeServiceClient projectTypeService;
-    private final ProjectTypeRegistry      projectTypeRegistry;
-    private final AppContext               appContext;
+    private final ProjectTypeRegistry projectTypeRegistry;
+    private final AppContext          appContext;
 
     @Inject
-    public ProjectTypeComponent(ProjectTypeServiceClient projectTypeService,
+    public ProjectTypeComponent(EventBus eventBus,
+                                ProjectTypeServiceClient projectTypeService,
                                 ProjectTypeRegistry projectTypeRegistry,
                                 AppContext appContext) {
+        this.eventBus = eventBus;
         this.projectTypeService = projectTypeService;
         this.projectTypeRegistry = projectTypeRegistry;
         this.appContext = appContext;
@@ -47,17 +53,29 @@ public class ProjectTypeComponent implements WsAgentComponent {
 
     @Override
     public void start(final Callback<WsAgentComponent, Exception> callback) {
-        projectTypeService.getProjectTypes(appContext.getDevMachine()).then(new Operation<List<ProjectTypeDto>>() {
+        eventBus.addHandler(WsAgentStateEvent.TYPE, new WsAgentStateHandler() {
             @Override
-            public void apply(List<ProjectTypeDto> arg) throws OperationException {
-                projectTypeRegistry.registerAll(arg);
-                callback.onSuccess(ProjectTypeComponent.this);
+            public void onWsAgentStarted(WsAgentStateEvent event) {
+                projectTypeService.getProjectTypes(appContext.getDevMachine()).then(new Operation<List<ProjectTypeDto>>() {
+                    @Override
+                    public void apply(List<ProjectTypeDto> arg) throws OperationException {
+                        projectTypeRegistry.registerAll(arg);
+                        callback.onSuccess(ProjectTypeComponent.this);
+                    }
+                }).catchError(new Operation<PromiseError>() {
+                    @Override
+                    public void apply(PromiseError arg) throws OperationException {
+                        callback.onFailure(new Exception("Can't load project types: " + arg.toString()));
+                    }
+                });
             }
-        }).catchError(new Operation<PromiseError>() {
+
             @Override
-            public void apply(PromiseError arg) throws OperationException {
-                callback.onFailure(new Exception("Can't load project types: " + arg.toString()));
+            public void onWsAgentStopped(WsAgentStateEvent event) {
+
             }
         });
+
+
     }
 }

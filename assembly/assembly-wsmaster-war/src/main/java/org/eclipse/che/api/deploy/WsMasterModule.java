@@ -14,8 +14,9 @@ import com.google.inject.AbstractModule;
 import com.google.inject.multibindings.Multibinder;
 import com.google.inject.name.Names;
 
+import org.eclipse.che.api.agent.server.AgentHealthCheckerService;
 import org.eclipse.che.api.machine.shared.Constants;
-import org.eclipse.che.api.workspace.server.WorkspaceAgentHealthChecker;
+import org.eclipse.che.api.agent.server.WsAgentHealthChecker;
 import org.eclipse.che.inject.DynaModule;
 
 /** @author andrew00x */
@@ -35,7 +36,7 @@ public class WsMasterModule extends AbstractModule {
         bind(org.eclipse.che.api.workspace.server.stack.StackLoader.class);
         bind(org.eclipse.che.api.workspace.server.stack.StackService.class);
         bind(org.eclipse.che.api.workspace.server.WorkspaceService.class);
-        bind(org.eclipse.che.api.workspace.server.WorkspaceAgentHealthChecker.class);
+        bind(org.eclipse.che.api.agent.server.AgentHealthCheckerService.class);
         bind(org.eclipse.che.api.workspace.server.event.WorkspaceMessenger.class).asEagerSingleton();
         bind(org.eclipse.che.plugin.docker.machine.ext.DockerMachineExtServerChecker.class);
         bind(org.eclipse.che.plugin.docker.machine.ext.DockerMachineTerminalChecker.class);
@@ -56,6 +57,12 @@ public class WsMasterModule extends AbstractModule {
         machineServers.addBinding().toInstance(
                 new org.eclipse.che.api.machine.server.model.impl.ServerConfImpl(Constants.WSAGENT_DEBUG_REFERENCE, "4403/tcp", "http",
                                                                                  null));
+
+
+        Multibinder<org.eclipse.che.api.agent.server.AgentHealthChecker> agentHealthCheckerMultibinder = Multibinder.newSetBinder(binder(),
+                                                                             org.eclipse.che.api.agent.server.AgentHealthChecker.class);
+        agentHealthCheckerMultibinder.addBinding().to(WsAgentHealthChecker.class);
+
 
         bind(org.eclipse.che.api.machine.server.recipe.RecipeLoader.class);
         Multibinder.newSetBinder(binder(), String.class, Names.named("predefined.recipe.path"))

@@ -13,7 +13,6 @@ package org.eclipse.che.api.workspace.shared.dto;
 import org.eclipse.che.api.core.model.workspace.WorkspaceStatus;
 import org.eclipse.che.dto.shared.DTO;
 
-import javax.ws.rs.core.Response;
 import java.util.Map;
 
 /**
@@ -22,11 +21,11 @@ import java.util.Map;
  * @author Vitalii Parfonov
  */
 @DTO
-public interface WorkspaceAgentHealthStateDto {
+public interface AgentHealthStateDto {
 
     void setWorkspaceStatus(WorkspaceStatus status);
 
-    WorkspaceAgentHealthStateDto withWorkspaceStatus(WorkspaceStatus status);
+    AgentHealthStateDto withWorkspaceStatus(WorkspaceStatus status);
 
     /**
      * Returns the status of the current workspace instance.
@@ -38,7 +37,7 @@ public interface WorkspaceAgentHealthStateDto {
 
     void setAgentStates(Map<String, AgentState> agentStates);
 
-    WorkspaceAgentHealthStateDto withAgentStates(Map<String, AgentState> agentStates);
+    AgentHealthStateDto withAgentStates(Map<String, AgentState> agentStates);
 
     /**
      *
