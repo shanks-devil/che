@@ -110,7 +110,9 @@ public class AgentHealthCheckerService extends Service {
                              .withAgentStates(agentStates);
         }
 
-        return agentHealthChecker.check(key);
+        final AgentHealthStateDto check = agentHealthChecker.check(devMachine);
+        check.setWorkspaceStatus(workspace.getStatus());
+        return check;
 
     }
 

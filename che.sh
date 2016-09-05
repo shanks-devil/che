@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Copyright (c) 2012-2016 Codenvy, S.A.
 # All rights reserved. This program and the accompanying materials
 # are made available under the terms of the Eclipse Public License v1.0
@@ -57,6 +57,7 @@ init_global_variables() {
   DEFAULT_CHE_VERSION="latest"
   DEFAULT_CHE_CLI_ACTION="help"
   DEFAULT_IS_INTERACTIVE="true"
+  DEFAULT_IS_PSEUDO_TTY="true"
 
   CHE_PRODUCT_NAME=${CHE_PRODUCT_NAME:-${DEFAULT_CHE_PRODUCT_NAME}}
   CHE_MINI_PRODUCT_NAME=${CHE_MINI_PRODUCT_NAME:-${DEFAULT_CHE_MINI_PRODUCT_NAME}}
@@ -71,6 +72,7 @@ init_global_variables() {
   CHE_VERSION=${CHE_VERSION:-${DEFAULT_CHE_VERSION}}
   CHE_CLI_ACTION=${CHE_CLI_ACTION:-${DEFAULT_CHE_CLI_ACTION}}
   IS_INTERACTIVE=${IS_INTERACTIVE:-${DEFAULT_IS_INTERACTIVE}}
+  IS_PSEUDO_TTY=${IS_PSEUDO_TTY:-${DEFAULT_IS_PSEUDO_TTY}}
 
   GLOBAL_NAME_MAP=$(docker info | grep "Name:" | cut -d" " -f2)
   GLOBAL_HOST_ARCH=$(docker version --format {{.Client}} | cut -d" " -f5)
@@ -153,20 +155,24 @@ docker_run() {
 }
 
 docker_run_with_env_file() {
-  if has_che_env_variables; then
-    get_list_of_che_system_environment_variables
-    docker_run --env-file="tmp" "$@"
-    rm -rf "tmp" > /dev/null
+  get_list_of_che_system_environment_variables
+  docker_run --env-file=tmp "$@"
+  rm -rf $PWD/tmp > /dev/null
+}
+
+docker_run_with_pseudo_tty() {
+  if has_pseudo_tty; then
+    docker_run_with_env_file -t "$@"
   else
-    docker_run "$@"
+    docker_run_with_env_file "$@"
   fi
 }
 
 docker_run_with_interactive() {
   if has_interactive; then
-    docker_run_with_env_file -it "$@"
+    docker_run_with_pseudo_tty -i "$@"
   else
-    docker_run_with_env_file -t "$@"
+    docker_run_with_pseudo_tty "$@"
   fi
 }
 
@@ -189,6 +195,14 @@ docker_run_with_che_properties() {
 
 has_interactive() {
   if [ "${IS_INTERACTIVE}" = "true" ]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+has_pseudo_tty() {
+  if [ "${IS_PSEUDO_TTY}" = "true" ]; then
     return 0
   else
     return 1
@@ -340,13 +354,19 @@ has_che_env_variables() {
 get_list_of_che_system_environment_variables() {
   # See: http://stackoverflow.com/questions/4128235/what-is-the-exact-meaning-of-ifs-n
   IFS=$'\n'
-  DOCKER_ENV="tmp"
-
-  touch "tmp"
+  DOCKER_ENV=$(get_mount_path $PWD)/tmp
+  touch $DOCKER_ENV
   
   if has_default_profile; then
     cat ~/.che/profiles/${CHE_PROFILE} >> $DOCKER_ENV
   else
+
+    # Grab these values to send to other utilities - they need to know the values  
+    echo "CHE_SERVER_CONTAINER_NAME=${CHE_SERVER_CONTAINER_NAME}" >> $DOCKER_ENV
+    echo "CHE_SERVER_IMAGE_NAME=${CHE_SERVER_IMAGE_NAME}" >> $DOCKER_ENV
+    echo "CHE_PRODUCT_NAME=${CHE_PRODUCT_NAME}" >> $DOCKER_ENV
+    echo "CHE_MINI_PRODUCT_NAME=${CHE_PRODUCT_NAME}" >> $DOCKER_ENV
+
     CHE_VARIABLES=$(env | grep CHE_)
 
     if [ ! -z ${CHE_VARIABLES+x} ]; then
@@ -403,8 +423,6 @@ generate_temporary_che_properties_file() {
       PROPERTY_NAME=$(echo $PROPERTY_WITHOUT_PREFIX | cut -f1 -d=)
       PROPERTY_VALUE=$(echo $PROPERTY_WITHOUT_PREFIX | cut -f2 -d=)
      
-      # Replace "_" in names to periods
-
       # Replace "_" in names to periods
       CONVERTED_PROPERTY_NAME=$(echo "$PROPERTY_NAME" | tr _ .)
 
@@ -608,7 +626,7 @@ load_profile() {
       return
     fi
 
-    source ~/.che//profiles/"${CHE_PROFILE}"
+    source ~/.che/profiles/"${CHE_PROFILE}"
   fi
 }
 
@@ -728,6 +746,7 @@ print_che_cli_debug() {
   debug "HAS_CHE_ENV_VARIABLES     = $(has_che_env_variables && echo "YES" || echo "NO")"
   debug "HAS_TEMP_CHE_PROPERTIES   = $(has_che_properties && echo "YES" || echo "NO")"
   debug "HAS_INTERACTIVE           = $(has_interactive && echo "YES" || echo "NO")"
+  debug "HAS_PSEUDO_TTY            = $(has_pseudo_tty && echo "YES" || echo "NO")"
   debug ""
 }
 

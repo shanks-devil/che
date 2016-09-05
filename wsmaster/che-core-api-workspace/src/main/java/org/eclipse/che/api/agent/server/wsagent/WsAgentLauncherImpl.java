@@ -10,6 +10,7 @@
  *******************************************************************************/
 package org.eclipse.che.api.agent.server.wsagent;
 
+import org.eclipse.che.api.agent.server.AgentHealthChecker;
 import org.eclipse.che.api.core.ApiException;
 import org.eclipse.che.api.core.BadRequestException;
 import org.eclipse.che.api.core.NotFoundException;
@@ -33,6 +34,9 @@ import javax.ws.rs.HttpMethod;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.util.Map;
+import java.util.Set;
+
+import static org.eclipse.che.api.machine.shared.Constants.WSAGENT_REFERENCE;
 
 /**
  * Starts ws agent in the machine and waits until ws agent sends notification about its start
@@ -81,6 +85,7 @@ public class WsAgentLauncherImpl implements WsAgentLauncher {
     @Override
     public void startWsAgent(Machine devMachine) throws NotFoundException,
                                                         ServerException {
+
         final HttpJsonRequest wsAgentPingRequest = createPingRequest(devMachine);
         final String wsAgentPingUrl = wsAgentPingRequest.getUrl();
         try {
