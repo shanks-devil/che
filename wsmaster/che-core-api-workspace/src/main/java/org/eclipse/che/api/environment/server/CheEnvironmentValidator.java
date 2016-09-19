@@ -120,7 +120,7 @@ public class CheEnvironmentValidator {
                       envName);
 
         checkArgument(env.getMachines() != null && !env.getMachines().isEmpty(),
-                      "Environment '%s' doesn't contain machine with 'ws-agent' agent",
+                      "Environment '%s' doesn't contain machine with 'org.eclipse.che.ws-agent' agent",
                       envName);
 
         List<String> missingServices = env.getMachines()
@@ -136,14 +136,13 @@ public class CheEnvironmentValidator {
         List<String> devMachines = env.getMachines()
                                       .entrySet()
                                       .stream()
-                                      .filter(entry -> entry.getValue()
-                                                            .getAgents()
-                                                            .contains("ws-agent"))
+                                      .filter(entry -> entry.getValue().getAgents() != null &&
+                                                       entry.getValue().getAgents().contains("org.eclipse.che.ws-agent"))
                                       .map(Map.Entry::getKey)
                                       .collect(toList());
 
         checkArgument(devMachines.size() == 1,
-                      "Environment '%s' should contain exactly 1 machine with ws-agent, but contains '%s'. " +
+                      "Environment '%s' should contain exactly 1 machine with agent 'org.eclipse.che.ws-agent', but contains '%s'. " +
                       "All machines with this agent: %s",
                       envName, devMachines.size(), Joiner.on(", ").join(devMachines));
 
@@ -183,35 +182,8 @@ public class CheEnvironmentValidator {
                       "Field 'image' or 'build.context' is required in machine '%s' in environment '%s'",
                       machineName, envName);
 
-        if (extendedMachine.getAttributes() != null &&
-            extendedMachine.getAttributes().get("memoryLimitBytes") != null) {
-
-            try {
-                long memoryLimitBytes = Long.parseLong(extendedMachine.getAttributes().get("memoryLimitBytes"));
-                checkArgument(memoryLimitBytes > 0,
-                              "Value of attribute 'memoryLimitBytes' of machine '%s' in environment '%s' is illegal",
-                              machineName, envName);
-            } catch (NumberFormatException e) {
-                throw new IllegalArgumentException(
-                        format("Value of attribute 'memoryLimitBytes' of machine '%s' in environment '%s' is illegal",
-                               machineName, envName));
-            }
-        }
-
-        if (extendedMachine.getServers() != null) {
-            extendedMachine.getServers()
-                           .entrySet()
-                           .forEach(serverEntry -> {
-                               String serverName = serverEntry.getKey();
-                               ServerConf2 server = serverEntry.getValue();
-
-                               checkArgument(server.getPort() != null && SERVER_PORT.matcher(server.getPort()).matches(),
-                                             "Machine '%s' in environment '%s' contains server conf '%s' with invalid port '%s'",
-                                             machineName, envName, serverName, server.getPort());
-                               checkArgument(server.getProtocol() == null || SERVER_PROTOCOL.matcher(server.getProtocol()).matches(),
-                                             "Machine '%s' in environment '%s' contains server conf '%s' with invalid protocol '%s'",
-                                             machineName, envName, serverName, server.getProtocol());
-                           });
+        if (extendedMachine != null) {
+            validateExtendedMachine(extendedMachine, envName, machineName);
         }
 
         service.getExpose()
@@ -265,6 +237,52 @@ public class CheEnvironmentValidator {
         checkArgument(service.getVolumes() == null || service.getVolumes().isEmpty(),
                       "Volumes binding is forbidden but found in machine '%s' of environment '%s'",
                       machineName, envName);
+
+        checkArgument(service.getNetworks() == null || service.getNetworks().isEmpty(),
+                      "Networks configuration is forbidden but found in machine '%s' of environment '%s'",
+                      machineName, envName);
+    }
+
+    private void validateExtendedMachine(ExtendedMachine extendedMachine, String envName, String machineName) {
+        if (extendedMachine.getAttributes() != null &&
+            extendedMachine.getAttributes().get("memoryLimitBytes") != null) {
+
+            try {
+                long memoryLimitBytes = Long.parseLong(extendedMachine.getAttributes().get("memoryLimitBytes"));
+                checkArgument(memoryLimitBytes > 0,
+                              "Value of attribute 'memoryLimitBytes' of machine '%s' in environment '%s' is illegal",
+                              machineName, envName);
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException(
+                        format("Value of attribute 'memoryLimitBytes' of machine '%s' in environment '%s' is illegal",
+                               machineName, envName));
+            }
+        }
+
+        if (extendedMachine.getServers() != null) {
+            extendedMachine.getServers()
+                           .entrySet()
+                           .forEach(serverEntry -> {
+                               String serverName = serverEntry.getKey();
+                               ServerConf2 server = serverEntry.getValue();
+
+                               checkArgument(server.getPort() != null && SERVER_PORT.matcher(server.getPort()).matches(),
+                                             "Machine '%s' in environment '%s' contains server conf '%s' with invalid port '%s'",
+                                             machineName, envName, serverName, server.getPort());
+                               checkArgument(server.getProtocol() == null || SERVER_PROTOCOL.matcher(server.getProtocol()).matches(),
+                                             "Machine '%s' in environment '%s' contains server conf '%s' with invalid protocol '%s'",
+                                             machineName, envName, serverName, server.getProtocol());
+                           });
+        }
+
+        if (extendedMachine.getAgents() != null) {
+            for (String agent : extendedMachine.getAgents()) {
+                checkArgument(!isNullOrEmpty(agent),
+                              "Machine '%s' in environment '%s' contains invalid agent '%s'",
+                              machineName, envName, agent);
+            }
+        }
+
     }
 
     public void validateMachine(MachineConfig machineCfg) throws IllegalArgumentException {

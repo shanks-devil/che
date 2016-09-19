@@ -433,6 +433,8 @@ get_docker_ready () {
     rm -rf ${CHE_HOME}/lib-copy/*
     mkdir -p ${CHE_HOME}/lib-copy
     cp -rf ${CHE_HOME}/lib/* ${CHE_HOME}/lib-copy
+
+    export JAVA_OPTS="${JAVA_OPTS} -Dche.docker.che_host_network=bridge"
   fi 
 }
 
@@ -606,7 +608,7 @@ call_catalina () {
 
   ### Cannot add this in setenv.sh.
   ### We do the port mapping here, and this gets inserted into server.xml when tomcat boots
-  export JAVA_OPTS="${JAVA_OPTS} -Dport.http=${CHE_PORT} -Dche.home=${CHE_HOME}"
+  export JAVA_OPTS="${JAVA_OPTS} -Dport.http=${CHE_PORT} -Dche.home=${CHE_HOME} -Dh2.baseDir=${CHE_HOME}/db/"
   export SERVER_PORT=${CHE_PORT}
 
   # Launch the Che application server, passing in command line parameters

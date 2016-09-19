@@ -38,7 +38,7 @@
                     "machines": {
                         "devmachine": {
                             "agents": [
-                                "ws-agent"
+                                "org.eclipse.che.ws-agent"
                             ],
                             "attributes" : {
                                 "memoryLimitBytes": "2147483648"
@@ -62,15 +62,7 @@
                 }
             ]
         },
-        "acl": [
-            {
-                "user": "*",
-                "actions": [
-                    "search"
-                ]
-            }
-        ],
-        "stackIcon": {
+        "stackIcon" : {
             "name": "type-java.svg",
             "mediaType": "image/svg+xml"
         }
@@ -129,7 +121,7 @@
                     "machines": {
                         "devmachine": {
                             "agents": [
-                                "ws-agent"
+                                "org.eclipse.che.ws-agent"
                             ],
                             "attributes" : {
                                 "memoryLimitBytes": "2147483648"
@@ -153,15 +145,7 @@
                     "type": "mvn"
                 }
             ]
-        },
-        "acl": [
-            {
-                "user": "*",
-                "actions": [
-                    "search"
-                ]
-            }
-        ]
+        }
     },
     {
         "id": "node-default",
@@ -217,7 +201,7 @@
                     "machines": {
                         "devmachine": {
                             "agents": [
-                                "ws-agent"
+                                "org.eclipse.che.ws-agent"
                             ],
                             "attributes" : {
                                 "memoryLimitBytes": "2147483648"
@@ -241,15 +225,7 @@
                     "type": "mvn"
                 }
             ]
-        },
-        "acl": [
-            {
-                "user": "*",
-                "actions": [
-                    "search"
-                ]
-            }
-        ]
+        }
     },
     {
         "id": "compose-location",
@@ -305,7 +281,7 @@
                     "machines": {
                         "devmachine": {
                             "agents": [
-                                "ws-agent"
+                                "org.eclipse.che.ws-agent"
                             ],
                             "attributes" : {
                                 "memoryLimitBytes": "2147483648"
@@ -329,15 +305,7 @@
                     "type": "mvn"
                 }
             ]
-        },
-        "acl": [
-            {
-                "user": "*",
-                "actions": [
-                    "search"
-                ]
-            }
-        ]
+        }
     },
     {
         "id": "compose-content",
@@ -393,7 +361,7 @@
                     "machines": {
                         "devmachine": {
                             "agents": [
-                                "ws-agent"
+                                "org.eclipse.che.ws-agent"
                             ]
                         }
                     },
@@ -414,14 +382,6 @@
                     "type": "mvn"
                 }
             ]
-        },
-        "acl": [
-            {
-                "user": "*",
-                "actions": [
-                    "search"
-                ]
-            }
-        ]
+        }
     }
 ]

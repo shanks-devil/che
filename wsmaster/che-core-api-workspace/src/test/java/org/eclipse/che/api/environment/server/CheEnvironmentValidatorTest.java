@@ -186,22 +186,35 @@ public class CheEnvironmentValidatorTest {
 
         env = createEnv();
         env.setMachines(null);
-        data.add(asList(env, "Environment 'env' doesn't contain machine with 'ws-agent' agent"));
+        data.add(asList(env, "Environment 'env' doesn't contain machine with 'org.eclipse.che.ws-agent' agent"));
 
         env = createEnv();
         env.setMachines(emptyMap());
-        data.add(asList(env, "Environment 'env' doesn't contain machine with 'ws-agent' agent"));
+        data.add(asList(env, "Environment 'env' doesn't contain machine with 'org.eclipse.che.ws-agent' agent"));
 
         env = createEnv();
         env.getMachines().put("missingInComposeEnvMachine",
-                              newDto(ExtendedMachineDto.class).withAgents(singletonList("ws-agent")));
+                              newDto(ExtendedMachineDto.class).withAgents(singletonList("org.eclipse.che.ws-agent")));
         data.add(asList(env, "Environment 'env' contains machines that are missing in environment recipe: missingInComposeEnvMachine"));
 
         env = createEnv();
-        env.getMachines().entrySet().forEach(entry -> entry.getValue().getAgents().add("ws-agent"));
-        data.add(asList(env, "Environment 'env' should contain exactly 1 machine with ws-agent, but contains '" +
+        env.getMachines().entrySet().forEach(entry -> entry.getValue().getAgents().add("org.eclipse.che.ws-agent"));
+        data.add(asList(env, "Environment 'env' should contain exactly 1 machine with agent 'org.eclipse.che.ws-agent', but contains '" +
                              env.getMachines().size() + "'. " + "All machines with this agent: " +
                              Joiner.on(", ").join(env.getMachines().keySet())));
+
+        env = createEnv();
+        env.getMachines().entrySet().forEach(entry -> entry.getValue().setAgents(null));
+        data.add(asList(env,
+                        "Environment 'env' should contain exactly 1 machine with agent 'org.eclipse.che.ws-agent', but contains '0'. All machines with this agent: "));
+
+        env = createEnv();
+        env.getMachines().entrySet().forEach(entry -> entry.getValue().getAgents().add(null));
+        data.add(asList(env, "Machine 'machine2' in environment 'env' contains invalid agent 'null'"));
+
+        env = createEnv();
+        env.getMachines().entrySet().forEach(entry -> entry.getValue().getAgents().add(""));
+        data.add(asList(env, "Machine 'machine2' in environment 'env' contains invalid agent ''"));
 
         env = createEnv();
         machineEntry = env.getMachines().entrySet().iterator().next();
@@ -224,6 +237,17 @@ public class CheEnvironmentValidatorTest {
         return data.stream()
                    .map(list -> list.toArray(new Object[list.size()]))
                    .toArray(value -> new Object[data.size()][]);
+    }
+
+    @Test
+    public void shouldNotFailIfExtraMachineDoesNotHaveExtendedMachineEntry() throws Exception {
+        // given
+        ComposeEnvironmentImpl composeEnv = createComposeEnv();
+        composeEnv.getServices().put("extra", createComposeService("_extra", 1000000L, null, null, null));
+        when(environmentParser.parse(any(Environment.class))).thenReturn(composeEnv);
+
+        // when
+        environmentValidator.validate("env", environment);
     }
 
     @Test(dataProvider = "invalidComposeEnvironmentProvider")
@@ -296,6 +320,25 @@ public class CheEnvironmentValidatorTest {
         service.setBuild(new BuildContextImpl());
         data.add(asList(env, format("Field 'image' or 'build.context' is required in machine '%s' in environment 'env'", serviceEntry.getKey())));
 
+        env = createComposeEnv();
+        serviceEntry = getAnyService(env);
+        service = serviceEntry.getValue();
+        service.setPorts(new ArrayList<>(singletonList("8080:8080")));
+        data.add(asList(env, format("Ports binding is forbidden but found in machine '%s' of environment 'env'", serviceEntry.getKey())));
+
+        env = createComposeEnv();
+        serviceEntry = getAnyService(env);
+        service = serviceEntry.getValue();
+        service.setVolumes(new ArrayList<>(singletonList("volume")));
+        data.add(asList(env, format("Volumes binding is forbidden but found in machine '%s' of environment 'env'", serviceEntry.getKey())));
+
+        env = createComposeEnv();
+        serviceEntry = getAnyService(env);
+        service = serviceEntry.getValue();
+        service.setNetworks(new ArrayList<>(singletonList("network1")));
+        data.add(asList(env, format("Networks configuration is forbidden but found in machine '%s' of environment 'env'", serviceEntry.getKey())));
+
+        // TODO uncomment when internal representation of env will be separated from compose representation
 //        env = createComposeEnv();
 //        serviceEntry = getAnyService(env);
 //        service = serviceEntry.getValue();
@@ -526,7 +569,7 @@ public class CheEnvironmentValidatorTest {
                                                 new HashMap<>(singletonMap("prop1", "propValue"))));
         servers.put("ref2", new ServerConf2Impl("8080/udp", "proto1", null));
         servers.put("ref3", new ServerConf2Impl("9090", "proto1", null));
-        machines.put("dev-machine", new ExtendedMachineImpl(new ArrayList<>(asList("ws-agent", "someAgent")),
+        machines.put("dev-machine", new ExtendedMachineImpl(new ArrayList<>(asList("org.eclipse.che.ws-agent", "someAgent")),
                                                             servers,
                                                             new HashMap<>(singletonMap("memoryLimitBytes", "10000"))));
         machines.put("machine2", new ExtendedMachineImpl(new ArrayList<>(asList("someAgent2", "someAgent3")),
@@ -547,39 +590,50 @@ public class CheEnvironmentValidatorTest {
         Map<String, ComposeServiceImpl> services = new HashMap<>();
         composeEnvironment.setServices(services);
 
-        ComposeServiceImpl service = new ComposeServiceImpl();
-        service.setMemLimit(1024L * 1024L * 1024L);
-        service.setImage("codenvy/ubuntu_jdk8");
-        service.setEnvironment(new HashMap<>(singletonMap("env1", "val1")));
-        service.setCommand(new ArrayList<>(asList("this", "is", "command")));
-        service.setContainerName("containerName");
-        service.setDependsOn(new ArrayList<>(singletonList("machine2")));
-        service.setEntrypoint(new ArrayList<>(asList("this", "is", "entrypoint")));
-        service.setExpose(new ArrayList<>(asList("8080", "9090/tcp", "7070/udp")));
-        service.setLabels(new HashMap<>(singletonMap("label1", "value1")));
-        service.setLinks(new ArrayList<>(singletonList("machine2")));
-//        service.setPorts(new ArrayList<>(singletonList("8080:8080"))); Forbidden
-//        service.setVolumes(new ArrayList<>(singletonList("volume"))); Forbidden
-        service.setVolumesFrom(new ArrayList<>(singletonList("machine2")));
+        services.put("dev-machine", createComposeService("_dev",
+                                                         1024L * 1024L * 1024L,
+                                                         singletonList("machine2"),
+                                                         singletonList("machine2"),
+                                                         singletonList("machine2")));
 
-        services.put("dev-machine", service);
-
-        service = new ComposeServiceImpl();
-        service.setMemLimit(100L);
+        ComposeServiceImpl service = createComposeService("_machine2",
+                                                          100L,
+                                                          null,
+                                                          emptyList(),
+                                                          null);
         service.setBuild(new BuildContextImpl("context", "file"));
-        service.setEnvironment(new HashMap<>(singletonMap("env1", "val1")));
-        service.setCommand(new ArrayList<>(asList("this", "is", "command")));
-        service.setContainerName("containerName2");
-        service.setDependsOn(null);
-        service.setEntrypoint(new ArrayList<>(asList("this", "is", "entrypoint")));
-        service.setExpose(new ArrayList<>(asList("8080", "9090/tcp", "7070/udp")));
-        service.setLabels(new HashMap<>(singletonMap("label1", "value1")));
-        service.setLinks(new ArrayList<>(emptyList()));
-//        service.setPorts(new ArrayList<>(singletonList("8080:8080"))); Forbidden
-//        service.setVolumes(new ArrayList<>(singletonList("volume"))); Forbidden
-        service.setVolumesFrom(null);
+
         services.put("machine2", service);
 
         return composeEnvironment;
+    }
+
+    private static ComposeServiceImpl createComposeService(String suffix,
+                                                           long memLimitBytes,
+                                                           List<String> links,
+                                                           List<String> dependsOn,
+                                                           List<String> volumesFrom) {
+        ComposeServiceImpl service = new ComposeServiceImpl();
+        service.setMemLimit(memLimitBytes);
+        service.setImage("image_repo/image" + suffix);
+        service.setEnvironment(new HashMap<>(singletonMap("env" + suffix, "val" + suffix)));
+        service.setCommand(new ArrayList<>(asList("this", "is", "command" + suffix)));
+        service.setContainerName("containerName" + suffix);
+        service.setEntrypoint(new ArrayList<>(asList("this", "is", "entrypoint" + suffix)));
+        service.setExpose(new ArrayList<>(asList("8080", "9090/tcp", "7070/udp")));
+        service.setLabels(new HashMap<>(singletonMap("label" + suffix, "value" + suffix)));
+        if (links != null) {
+            service.setLinks(new ArrayList<>(links));
+        }
+        if (dependsOn != null) {
+            service.setDependsOn(new ArrayList<>(dependsOn));
+        }
+        if (volumesFrom != null) {
+            service.setVolumesFrom(new ArrayList<>(volumesFrom));
+        }
+//        service.setPorts(new ArrayList<>(singletonList("8080:8080"))); Forbidden
+//        service.setVolumes(new ArrayList<>(singletonList("volume"))); Forbidden
+
+        return service;
     }
 }

@@ -4,9 +4,9 @@
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
- *
+ * <p>
  * Contributors:
- *   Codenvy, S.A. - initial API and implementation
+ * Codenvy, S.A. - initial API and implementation
  *******************************************************************************/
 package org.eclipse.che.ide.api.machine;
 
@@ -37,8 +37,7 @@ import org.eclipse.che.ide.rest.DtoUnmarshallerFactory;
 import org.eclipse.che.ide.rest.RestContext;
 import org.eclipse.che.ide.rest.RestServiceInfo;
 import org.eclipse.che.ide.rest.StringUnmarshaller;
-import org.eclipse.che.ide.ui.loaders.initialization.InitialLoadingInfo;
-import org.eclipse.che.ide.ui.loaders.initialization.LoaderPresenter;
+import org.eclipse.che.ide.ui.loaders.LoaderPresenter;
 import org.eclipse.che.ide.util.loging.Log;
 import org.eclipse.che.ide.websocket.MessageBus;
 import org.eclipse.che.ide.websocket.MessageBusProvider;
@@ -52,14 +51,10 @@ import java.util.List;
 
 import static com.google.common.collect.Lists.newArrayList;
 import static org.eclipse.che.api.machine.shared.Constants.WSAGENT_REFERENCE;
-import static org.eclipse.che.api.promises.client.callback.PromiseHelper.newCallback;
 import static org.eclipse.che.ide.MimeType.APPLICATION_JSON;
 import static org.eclipse.che.ide.api.machine.WsAgentState.STARTED;
 import static org.eclipse.che.ide.api.machine.WsAgentState.STOPPED;
 import static org.eclipse.che.ide.rest.HTTPHeader.ACCEPT;
-import static org.eclipse.che.ide.ui.loaders.initialization.InitialLoadingInfo.Operations.WS_AGENT_BOOTING;
-import static org.eclipse.che.ide.ui.loaders.initialization.OperationInfo.Status.IN_PROGRESS;
-import static org.eclipse.che.ide.ui.loaders.initialization.OperationInfo.Status.SUCCESS;
 
 /**
  * @author Roman Nikitenko
@@ -72,16 +67,13 @@ public class WsAgentStateController implements ConnectionOpenedHandler, Connecti
     private final MessageBusProvider     messageBusProvider;
     private final DtoUnmarshallerFactory dtoUnmarshallerFactory;
     private final DialogFactory          dialogFactory;
-    private final InitialLoadingInfo     initialLoadingInfo;
     private final String                 restContext;
     private final WorkspaceServiceClient workspaceServiceClient;
-    private final LoaderPresenter loader;
-    private final AsyncRequestFactory asyncRequestFactory;
-    private       DevMachine          devMachine;
-
+    private final AsyncRequestFactory    asyncRequestFactory;
+    private final LoaderPresenter        loader;
     //not used now added it for future if it we will have possibility check that service available for client call
     private final List<RestServiceInfo> availableServices;
-
+    private       DevMachine             devMachine;
     private MessageBus   messageBus;
     private WsAgentState state;
     private List<AsyncCallback<MessageBus>> messageBusCallbacks = newArrayList();
@@ -95,8 +87,7 @@ public class WsAgentStateController implements ConnectionOpenedHandler, Connecti
                                   MessageBusProvider messageBusProvider,
                                   AsyncRequestFactory asyncRequestFactory,
                                   DtoUnmarshallerFactory dtoUnmarshallerFactory,
-                                  DialogFactory dialogFactory,
-                                  InitialLoadingInfo initialLoadingInfo) {
+                                  DialogFactory dialogFactory) {
         this.restContext = restContext;
         this.workspaceServiceClient = workspaceServiceClient;
         this.loader = loader;
@@ -105,14 +96,13 @@ public class WsAgentStateController implements ConnectionOpenedHandler, Connecti
         this.asyncRequestFactory = asyncRequestFactory;
         this.dtoUnmarshallerFactory = dtoUnmarshallerFactory;
         this.dialogFactory = dialogFactory;
-        this.initialLoadingInfo = initialLoadingInfo;
         this.availableServices = new ArrayList<>();
     }
 
     public void initialize(DevMachine devMachine) {
         this.devMachine = devMachine;
         this.state = STOPPED;
-        initialLoadingInfo.setOperationStatus(WS_AGENT_BOOTING.getValue(), IN_PROGRESS);
+        loader.setProgress(LoaderPresenter.Phase.STARTING_WORKSPACE_AGENT, LoaderPresenter.Status.LOADING);
         checkHttpConnection();
     }
 
@@ -120,69 +110,67 @@ public class WsAgentStateController implements ConnectionOpenedHandler, Connecti
     public void onClose(WebSocketClosedEvent event) {
         Log.info(getClass(), "Test WS connection closed with code " + event.getCode() + " reason: " + event.getReason());
         if (state.equals(STARTED)) {
-            final String url = restContext + "/workspace-agent-health/" + devMachine.getWorkspace()  + "/" + WSAGENT_REFERENCE;
-            asyncRequestFactory.createGetRequest(url)
-                               .header(ACCEPT, APPLICATION_JSON)
-                               .send(dtoUnmarshallerFactory.newUnmarshaller(AgentHealthStateDto.class)).then(
-                    new Operation<AgentHealthStateDto>() {
-                        @Override
-                        public void apply(AgentHealthStateDto arg) throws OperationException {
-                            Log.info(getClass(), arg.toString());
-                            if (WorkspaceStatus.RUNNING.equals(arg.getWorkspaceStatus())) {
-                                if (arg.getAgentStates().containsKey(WSAGENT_REFERENCE) ||
-                                    arg.getAgentStates().get(WSAGENT_REFERENCE).getCode() != 200) {
-                                    dialogFactory.createMessageDialog("Workspace Agent",
-                                                                      new Label(
-                                                                              "Workspace Agent not response but workspace still running." +
-                                                                              "You need to stop workspace, try to fix problem and start it again"),
-                                                                      new ConfirmCallback() {
-                                                                          @Override
-                                                                          public void accepted() {
-                                                                              workspaceServiceClient.stop(devMachine.getWorkspace()).then(
-                                                                                      new Operation<Void>() {
-                                                                                          @Override
-                                                                                          public void apply(Void arg)
-                                                                                                  throws OperationException {
-                                                                                              state = STOPPED;
-                                                                                              eventBus.fireEvent(WsAgentStateEvent
-                                                                                                                         .createWsAgentStoppedEvent());
-                                                                                          }
-                                                                                      });
-                                                                          }
-                                                                      }, "Stop workspace").show();
-                                }
+            checkWsAgentState();
+        }
+    }
 
-                                if (arg.getAgentStates().get(WSAGENT_REFERENCE).getCode() == 200) {
-                                    dialogFactory.createMessageDialog("Workspace Agent",
-                                                                      new Label(
-                                                                              "Workspace Agent not available for you browser." +
-                                                                              "But still available for our infrastructure. Looks like you have problem in your networking setting." +
-                                                                              "Do you want to stop workspace?"),
-                                                                      new ConfirmCallback() {
-                                                                          @Override
-                                                                          public void accepted() {
-                                                                              workspaceServiceClient.stop(devMachine.getWorkspace()).then(
-                                                                                      new Operation<Void>() {
-                                                                                          @Override
-                                                                                          public void apply(Void arg)
-                                                                                                  throws OperationException {
-                                                                                              state = STOPPED;
-                                                                                              eventBus.fireEvent(WsAgentStateEvent
-                                                                                                                         .createWsAgentStoppedEvent());
-                                                                                          }
-                                                                                      });
-                                                                          }
-                                                                      }, "Stop workspace").show();
-                                }
+    private void checkWsAgentState() {
+        final String url = restContext + "/workspace-agent-health/" + devMachine.getWorkspace() + "/" + WSAGENT_REFERENCE;
+        asyncRequestFactory.createGetRequest(url)
+                           .header(ACCEPT, APPLICATION_JSON)
+                           .send(dtoUnmarshallerFactory.newUnmarshaller(AgentHealthStateDto.class)).then(
+                new Operation<AgentHealthStateDto>() {
+                    @Override
+                    public void apply(AgentHealthStateDto arg) throws OperationException {
+                        Log.info(getClass(), arg.toString());
+                        if (WorkspaceStatus.RUNNING.equals(arg.getWorkspaceStatus())) {
+                            if (arg.getAgentStates().containsKey(WSAGENT_REFERENCE) ||
+                                arg.getAgentStates().get(WSAGENT_REFERENCE).getCode() != 200) {
+                                dialogFactory.createMessageDialog("Workspace Agent",
+                                                                  new Label(
+                                                                          "Workspace Agent not response but workspace still running." +
+                                                                          "You need to stop workspace, try to fix problem and start it again"),
+                                                                  new ConfirmCallback() {
+                                                                      @Override
+                                                                      public void accepted() {
+                                                                          stopWorkspace();
+                                                                      }
+                                                                  }, "Stop workspace").show();
+                            }
+
+                            if (arg.getAgentStates().get(WSAGENT_REFERENCE).getCode() == 200) {
+                                dialogFactory.createMessageDialog("Workspace Agent",
+                                                                  new Label(
+                                                                          "Workspace Agent not available for you browser." +
+                                                                          "But still available for our infrastructure. Looks like you have problem in your networking setting." +
+                                                                          "Do you want to stop workspace?"),
+                                                                  new ConfirmCallback() {
+                                                                      @Override
+                                                                      public void accepted() {
+                                                                          stopWorkspace();
+                                                                      }
+                                                                  }, "Stop workspace").show();
                             }
                         }
-                    }).catchError(new Operation<PromiseError>() {
-                @Override
-                public void apply(PromiseError arg) throws OperationException {
+                    }
+                }).catchError(new Operation<PromiseError>() {
+            @Override
+            public void apply(PromiseError arg) throws OperationException {
 
-                }
-            });
-        }
+            }
+        });
+    }
+
+    private void stopWorkspace() {
+        workspaceServiceClient.stop(devMachine.getWorkspace()).then(new Operation<Void>() {
+            @Override
+            public void apply(Void arg)
+                    throws OperationException {
+                state = STOPPED;
+                eventBus.fireEvent(WsAgentStateEvent
+                                           .createWsAgentStoppedEvent());
+            }
+        });
     }
 
     @Override
@@ -211,8 +199,7 @@ public class WsAgentStateController implements ConnectionOpenedHandler, Connecti
 
     private void started() {
         state = STARTED;
-        initialLoadingInfo.setOperationStatus(WS_AGENT_BOOTING.getValue(), SUCCESS);
-        loader.hide();
+        loader.setProgress(LoaderPresenter.Phase.STARTING_WORKSPACE_AGENT, LoaderPresenter.Status.SUCCESS);
 
         for (AsyncCallback<MessageBus> callback : messageBusCallbacks) {
             callback.onSuccess(messageBus);
@@ -244,27 +231,12 @@ public class WsAgentStateController implements ConnectionOpenedHandler, Connecti
         });
     }
 
-
-    public Promise<DevMachine> getDevMachine() {
-        return AsyncPromiseHelper.createFromAsyncRequest(new AsyncPromiseHelper.RequestCall<DevMachine>() {
-            @Override
-            public void makeCall(AsyncCallback<DevMachine> callback) {
-                if (messageBus != null) {
-                    callback.onSuccess(devMachine);
-                } else {
-                    WsAgentStateController.this.devMachineCallbacks.add(callback);
-                }
-            }
-        });
-    }
-
-
     /**
      * Goto checking HTTP connection via getting all registered REST Services
      */
     private void checkHttpConnection() {
         String url = devMachine.getWsAgentBaseUrl() + '/'; //here we add trailing slash because
-                                                          // {@link org.eclipse.che.api.core.rest.ApiInfoService} mapped in this way
+        // {@link org.eclipse.che.api.core.rest.ApiInfoService} mapped in this way
         asyncRequestFactory.createGetRequest(url)
                            .send(new StringUnmarshaller())
                            .then(new Operation<String>() {
@@ -296,7 +268,8 @@ public class WsAgentStateController implements ConnectionOpenedHandler, Connecti
                                @Override
                                public void apply(PromiseError arg) throws OperationException {
                                    Log.error(getClass(), ">>>>>>>>>>>>>>>>>>>>>>>>>>>>> " + arg.getMessage());
-                                   final String url = restContext + "/workspace-agent-health/" + devMachine.getWorkspace() + "/" + WSAGENT_REFERENCE;
+                                   final String url =
+                                           restContext + "/workspace-agent-health/" + devMachine.getWorkspace() + "/" + WSAGENT_REFERENCE;
                                    asyncRequestFactory.createGetRequest(url)
                                                       .header(ACCEPT, APPLICATION_JSON)
                                                       .send(dtoUnmarshallerFactory.newUnmarshaller(AgentHealthStateDto.class)).then(
@@ -314,16 +287,7 @@ public class WsAgentStateController implements ConnectionOpenedHandler, Connecti
                                                                                              new ConfirmCallback() {
                                                                                                  @Override
                                                                                                  public void accepted() {
-                                                                                                     workspaceServiceClient.stop(devMachine.getWorkspace()).then(
-                                                                                                             new Operation<Void>() {
-                                                                                                                 @Override
-                                                                                                                 public void apply(Void arg)
-                                                                                                                         throws OperationException {
-                                                                                                                     state = STOPPED;
-                                                                                                                     eventBus.fireEvent(WsAgentStateEvent
-                                                                                                                                                .createWsAgentStoppedEvent());
-                                                                                                                 }
-                                                                                                             });
+                                                                                                     stopWorkspace();
                                                                                                  }
                                                                                              }, "Stop workspace").show();
                                                        }
@@ -337,16 +301,7 @@ public class WsAgentStateController implements ConnectionOpenedHandler, Connecti
                                                                                              new ConfirmCallback() {
                                                                                                  @Override
                                                                                                  public void accepted() {
-                                                                                                     workspaceServiceClient.stop(devMachine.getWorkspace()).then(
-                                                                                                             new Operation<Void>() {
-                                                                                                                 @Override
-                                                                                                                 public void apply(Void arg)
-                                                                                                                         throws OperationException {
-                                                                                                                     state = STOPPED;
-                                                                                                                     eventBus.fireEvent(WsAgentStateEvent
-                                                                                                                                                .createWsAgentStoppedEvent());
-                                                                                                                 }
-                                                                                                             });
+                                                                                                     stopWorkspace();
                                                                                                  }
                                                                                              }, "Stop workspace").show();
                                                        }
@@ -374,4 +329,5 @@ public class WsAgentStateController implements ConnectionOpenedHandler, Connecti
         messageBus.addOnErrorHandler(this);
         messageBus.addOnOpenHandler(this);
     }
+
 }

@@ -60,7 +60,7 @@ export class CreateProjectController {
     this.templatesChoice = 'templates-samples';
 
     // default RAM value for workspaces
-    this.workspaceRam = 1000;
+    this.workspaceRam = 2 * Math.pow(1024,3);
     this.websocketReconnect = 50;
 
     this.generateWorkspaceName();
@@ -156,6 +156,16 @@ export class CreateProjectController {
     cheAPI.cheWorkspace.getWorkspaces();
 
     $rootScope.showIDE = false;
+  }
+
+  /**
+   * Gets object keys from target object.
+   *
+   * @param targetObject
+   * @returns [*]
+   */
+  getObjectKeys(targetObject) {
+    return Object.keys(targetObject);
   }
 
   /**
@@ -347,19 +357,6 @@ export class CreateProjectController {
     let agentChannel = 'workspace:' + workspace.id + ':ext-server:output';
     let statusChannel = statusLink ? statusLink.parameters[0].defaultValue : null;
     let outputChannel = outputLink ? outputLink.parameters[0].defaultValue : null;
-
-    if (outputChannel) {
-      this.listeningChannels.push(outputChannel);
-      bus.subscribe(outputChannel, (message) => {
-        message = this.getDisplayMachineLog(message);
-
-        if (this.getCreationSteps()[this.getCurrentProgressStep()].logs.length > 0) {
-          this.getCreationSteps()[this.getCurrentProgressStep()].logs = this.getCreationSteps()[this.getCurrentProgressStep()].logs + '\n' + message;
-        } else {
-          this.getCreationSteps()[this.getCurrentProgressStep()].logs = message;
-        }
-      });
-    }
 
     this.listeningChannels.push(agentChannel);
     bus.subscribe(agentChannel, (message) => {
@@ -850,11 +847,9 @@ export class CreateProjectController {
       switch (this.stackTab) {
         case 'ready-to-go':
           source = this.getSourceFromStack(this.readyToGoStack);
-          this.stack = this.readyToGoStack;
           break;
         case 'stack-library':
           source = this.getSourceFromStack(this.stackLibraryUser);
-          this.stack = this.stackLibraryUser;
           break;
         case 'custom-stack':
           source.type = 'environment';
@@ -864,7 +859,6 @@ export class CreateProjectController {
           } else {
             source.content = this.recipeScript;
           }
-          this.stack = null;
           break;
       }
       this.createWorkspace(source);
@@ -1031,10 +1025,9 @@ export class CreateProjectController {
   }
 
   isReadyToCreate() {
-    let isCustomStack = this.stackTab === 'custom-stack';
     let isCreateProjectInProgress = this.isCreateProjectInProgress();
 
-    if (!isCustomStack) {
+    if (!this.isCustomStack) {
       return !isCreateProjectInProgress && this.isReady
     }
 
@@ -1095,6 +1088,7 @@ export class CreateProjectController {
   }
 
   setStackTab(stackTab) {
+    this.isCustomStack = stackTab === 'custom-stack';
     this.stackTab = stackTab;
   }
 
@@ -1161,8 +1155,8 @@ export class CreateProjectController {
    * @param stack the stack to use
    */
   updateCurrentStack(stack) {
+    this.stack = stack;
     this.currentStackTags = stack && stack.tags ? angular.copy(stack.tags) : null;
-
     if (!stack) {
       return;
     }
