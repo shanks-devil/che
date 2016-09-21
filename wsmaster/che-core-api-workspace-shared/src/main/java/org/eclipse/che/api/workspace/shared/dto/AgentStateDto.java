@@ -13,24 +13,22 @@ package org.eclipse.che.api.workspace.shared.dto;
 import org.eclipse.che.dto.shared.DTO;
 
 /**
- * //
+ * Describes state of the agent.
  *
  * @author Vitalii Parfonov
  */
 @DTO
-public interface AgentState {
+public interface AgentStateDto {
 
     void setCode(int code);
 
     int getCode();
 
-    AgentState withCode(int code);
+    AgentStateDto withCode(int code);
 
     void setReason(String reason);
 
     String getReason();
 
-    AgentState withReason(String reason);
-
-
+    AgentStateDto withReason(String reason);
 }

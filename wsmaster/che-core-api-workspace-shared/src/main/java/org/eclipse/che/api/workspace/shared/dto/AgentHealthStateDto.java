@@ -13,12 +13,11 @@ package org.eclipse.che.api.workspace.shared.dto;
 import org.eclipse.che.api.core.model.workspace.WorkspaceStatus;
 import org.eclipse.che.dto.shared.DTO;
 
-import java.util.Map;
-
 /**
- * //
+ * Describes status of the agent
  *
  * @author Vitalii Parfonov
+ * @author Valeriy Svydenko
  */
 @DTO
 public interface AgentHealthStateDto {
@@ -29,22 +28,23 @@ public interface AgentHealthStateDto {
 
     /**
      * Returns the status of the current workspace instance.
-     *
+     * <p>
      * <p>All the workspaces which are stopped have runtime
      * are considered {@link WorkspaceStatus#STOPPED}.
      */
     WorkspaceStatus getWorkspaceStatus();
 
-    void setAgentStates(Map<String, AgentState> agentStates);
+    void setAgentState(AgentStateDto agentState);
 
-    AgentHealthStateDto withAgentStates(Map<String, AgentState> agentStates);
+    AgentHealthStateDto withAgentState(AgentStateDto agentState);
 
-    /**
-     *
-     */
-    Map<String, AgentState> getAgentStates();
+    /** Returns state of the agent */
+    AgentStateDto getAgentState();
 
+    void setAgentId(String agentId);
 
+    AgentHealthStateDto withAgentId(String agentId);
 
-
+    /** Returns id of the agent */
+    String getAgentId();
 }

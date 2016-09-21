@@ -22,19 +22,37 @@ import org.eclipse.che.api.workspace.shared.dto.AgentHealthStateDto;
 import java.io.IOException;
 
 /**
- * //
+ * Interface which describes mechanism for checking agent's state.
  *
  * @author Vitalii Parfonov
  */
 public interface AgentHealthChecker {
-
+    /** Returns agent id */
     String agentId();
 
+    /**
+     * Verify if the agent is alive.
+     *
+     * @param devMachine
+     *         development machine instance
+     * @return state of the workspace agent
+     * @throws NotFoundException
+     *         if the agent with specified id does not exist
+     * @throws ServerException
+     *         if internal server error occurred
+     * @throws ForbiddenException
+     *         if the user is not workspace owner
+     * @throws BadRequestException
+     * @throws UnauthorizedException
+     *         if the user is not authorized
+     * @throws IOException
+     * @throws ConflictException
+     */
     AgentHealthStateDto check(Machine devMachine) throws NotFoundException,
-                                                          ServerException,
-                                                          ForbiddenException,
-                                                          BadRequestException,
-                                                          UnauthorizedException,
-                                                          IOException,
-                                                          ConflictException;
+                                                         ServerException,
+                                                         ForbiddenException,
+                                                         BadRequestException,
+                                                         UnauthorizedException,
+                                                         IOException,
+                                                         ConflictException;
 }

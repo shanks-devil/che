@@ -4,9 +4,9 @@
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
- * <p>
+ *
  * Contributors:
- * Codenvy, S.A. - initial API and implementation
+ *   Codenvy, S.A. - initial API and implementation
  *******************************************************************************/
 package org.eclipse.che.ide.api.machine;
 
@@ -14,29 +14,27 @@ import com.google.gwt.json.client.JSONArray;
 import com.google.gwt.json.client.JSONObject;
 import com.google.gwt.json.client.JSONParser;
 import com.google.gwt.user.client.Timer;
-import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.rpc.AsyncCallback;
-import com.google.gwt.user.client.ui.Label;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.web.bindery.event.shared.EventBus;
 
-import org.eclipse.che.api.core.model.workspace.WorkspaceStatus;
 import org.eclipse.che.api.promises.client.Operation;
 import org.eclipse.che.api.promises.client.OperationException;
 import org.eclipse.che.api.promises.client.Promise;
 import org.eclipse.che.api.promises.client.PromiseError;
 import org.eclipse.che.api.promises.client.callback.AsyncPromiseHelper;
 import org.eclipse.che.api.workspace.shared.dto.AgentHealthStateDto;
+import org.eclipse.che.api.workspace.shared.dto.AgentStateDto;
 import org.eclipse.che.ide.api.dialogs.ConfirmCallback;
 import org.eclipse.che.ide.api.dialogs.DialogFactory;
 import org.eclipse.che.ide.api.machine.events.WsAgentStateEvent;
-import org.eclipse.che.ide.api.workspace.WorkspaceServiceClient;
 import org.eclipse.che.ide.rest.AsyncRequestFactory;
 import org.eclipse.che.ide.rest.DtoUnmarshallerFactory;
 import org.eclipse.che.ide.rest.RestContext;
 import org.eclipse.che.ide.rest.RestServiceInfo;
 import org.eclipse.che.ide.rest.StringUnmarshaller;
+import org.eclipse.che.ide.rest.Unmarshallable;
 import org.eclipse.che.ide.ui.loaders.LoaderPresenter;
 import org.eclipse.che.ide.util.loging.Log;
 import org.eclipse.che.ide.websocket.MessageBus;
@@ -50,6 +48,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static com.google.common.collect.Lists.newArrayList;
+import static org.eclipse.che.api.core.model.workspace.WorkspaceStatus.RUNNING;
 import static org.eclipse.che.api.machine.shared.Constants.WSAGENT_REFERENCE;
 import static org.eclipse.che.ide.MimeType.APPLICATION_JSON;
 import static org.eclipse.che.ide.api.machine.WsAgentState.STARTED;
@@ -62,26 +61,23 @@ import static org.eclipse.che.ide.rest.HTTPHeader.ACCEPT;
  */
 @Singleton
 public class WsAgentStateController implements ConnectionOpenedHandler, ConnectionClosedHandler, ConnectionErrorHandler {
-
     private final EventBus               eventBus;
     private final MessageBusProvider     messageBusProvider;
     private final DtoUnmarshallerFactory dtoUnmarshallerFactory;
     private final DialogFactory          dialogFactory;
     private final String                 restContext;
-    private final WorkspaceServiceClient workspaceServiceClient;
     private final AsyncRequestFactory    asyncRequestFactory;
     private final LoaderPresenter        loader;
     //not used now added it for future if it we will have possibility check that service available for client call
-    private final List<RestServiceInfo> availableServices;
+    private final List<RestServiceInfo>  availableServices;
     private       DevMachine             devMachine;
-    private MessageBus   messageBus;
-    private WsAgentState state;
+    private       MessageBus             messageBus;
+    private       WsAgentState           state;
     private List<AsyncCallback<MessageBus>> messageBusCallbacks = newArrayList();
     private List<AsyncCallback<DevMachine>> devMachineCallbacks = newArrayList();
 
     @Inject
     public WsAgentStateController(@RestContext String restContext,
-                                  WorkspaceServiceClient workspaceServiceClient,
                                   EventBus eventBus,
                                   LoaderPresenter loader,
                                   MessageBusProvider messageBusProvider,
@@ -89,7 +85,6 @@ public class WsAgentStateController implements ConnectionOpenedHandler, Connecti
                                   DtoUnmarshallerFactory dtoUnmarshallerFactory,
                                   DialogFactory dialogFactory) {
         this.restContext = restContext;
-        this.workspaceServiceClient = workspaceServiceClient;
         this.loader = loader;
         this.eventBus = eventBus;
         this.messageBusProvider = messageBusProvider;
@@ -116,59 +111,21 @@ public class WsAgentStateController implements ConnectionOpenedHandler, Connecti
 
     private void checkWsAgentState() {
         final String url = restContext + "/workspace-agent-health/" + devMachine.getWorkspace() + "/" + WSAGENT_REFERENCE;
-        asyncRequestFactory.createGetRequest(url)
-                           .header(ACCEPT, APPLICATION_JSON)
-                           .send(dtoUnmarshallerFactory.newUnmarshaller(AgentHealthStateDto.class)).then(
-                new Operation<AgentHealthStateDto>() {
-                    @Override
-                    public void apply(AgentHealthStateDto arg) throws OperationException {
-                        Log.info(getClass(), arg.toString());
-                        if (WorkspaceStatus.RUNNING.equals(arg.getWorkspaceStatus())) {
-                            if (arg.getAgentStates().containsKey(WSAGENT_REFERENCE) ||
-                                arg.getAgentStates().get(WSAGENT_REFERENCE).getCode() != 200) {
-                                dialogFactory.createMessageDialog("Workspace Agent",
-                                                                  new Label(
-                                                                          "Workspace Agent not response but workspace still running." +
-                                                                          "You need to stop workspace, try to fix problem and start it again"),
-                                                                  new ConfirmCallback() {
-                                                                      @Override
-                                                                      public void accepted() {
-                                                                          stopWorkspace();
-                                                                      }
-                                                                  }, "Stop workspace").show();
-                            }
-
-                            if (arg.getAgentStates().get(WSAGENT_REFERENCE).getCode() == 200) {
-                                dialogFactory.createMessageDialog("Workspace Agent",
-                                                                  new Label(
-                                                                          "Workspace Agent not available for you browser." +
-                                                                          "But still available for our infrastructure. Looks like you have problem in your networking setting." +
-                                                                          "Do you want to stop workspace?"),
-                                                                  new ConfirmCallback() {
-                                                                      @Override
-                                                                      public void accepted() {
-                                                                          stopWorkspace();
-                                                                      }
-                                                                  }, "Stop workspace").show();
-                            }
-                        }
-                    }
-                }).catchError(new Operation<PromiseError>() {
+        final Unmarshallable<AgentHealthStateDto> unmarshaller = dtoUnmarshallerFactory.newUnmarshaller(AgentHealthStateDto.class);
+        final Promise<AgentHealthStateDto> wsAgentState = asyncRequestFactory.createGetRequest(url)
+                                                                             .header(ACCEPT, APPLICATION_JSON)
+                                                                             .send(unmarshaller);
+        wsAgentState.then(new Operation<AgentHealthStateDto>() {
+            @Override
+            public void apply(AgentHealthStateDto arg) throws OperationException {
+                if (RUNNING.equals(arg.getWorkspaceStatus())) {
+                    checkStateOfWsAgent(arg);
+                }
+            }
+        }).catchError(new Operation<PromiseError>() {
             @Override
             public void apply(PromiseError arg) throws OperationException {
-
-            }
-        });
-    }
-
-    private void stopWorkspace() {
-        workspaceServiceClient.stop(devMachine.getWorkspace()).then(new Operation<Void>() {
-            @Override
-            public void apply(Void arg)
-                    throws OperationException {
-                state = STOPPED;
-                eventBus.fireEvent(WsAgentStateEvent
-                                           .createWsAgentStoppedEvent());
+                Log.error(getClass(), arg.getMessage());
             }
         });
     }
@@ -235,86 +192,88 @@ public class WsAgentStateController implements ConnectionOpenedHandler, Connecti
      * Goto checking HTTP connection via getting all registered REST Services
      */
     private void checkHttpConnection() {
-        String url = devMachine.getWsAgentBaseUrl() + '/'; //here we add trailing slash because
-        // {@link org.eclipse.che.api.core.rest.ApiInfoService} mapped in this way
-        asyncRequestFactory.createGetRequest(url)
-                           .send(new StringUnmarshaller())
-                           .then(new Operation<String>() {
-                               @Override
-                               public void apply(String result) throws OperationException {
-                                   Window.alert(result);
-                                   JSONObject object = null;
-                                   try {
-                                       object = JSONParser.parseStrict(result).isObject();
-                                   } catch (Exception exception) {
-                                       Log.warn(getClass(), "Parse root resources failed.");
-                                   }
+        //here we add trailing slash because {@link org.eclipse.che.api.core.rest.ApiInfoService} mapped in this way
+        String url = devMachine.getWsAgentBaseUrl() + '/';
+        final String pingUrl = restContext + "/workspace-agent-health/" + devMachine.getWorkspace() + '/' + WSAGENT_REFERENCE;
+        asyncRequestFactory.createGetRequest(url).send(new StringUnmarshaller()).then(new Operation<String>() {
+            @Override
+            public void apply(String result) throws OperationException {
+                JSONObject object = null;
+                try {
+                    object = JSONParser.parseStrict(result).isObject();
+                } catch (Exception exception) {
+                    Log.warn(getClass(), "Parse root resources failed.");
+                }
 
-                                   if (object != null && object.containsKey("rootResources")) {
-                                       JSONArray rootResources = object.get("rootResources").isArray();
-                                       for (int i = 0; i < rootResources.size(); i++) {
-                                           JSONObject rootResource = rootResources.get(i).isObject();
-                                           String regex = rootResource.get("regex").isString().stringValue();
-                                           String fqn = rootResource.get("fqn").isString().stringValue();
-                                           String path = rootResource.get("path").isString().stringValue();
-                                           availableServices.add(new RestServiceInfo(fqn, regex, path));
-                                       }
-                                   }
+                if (object != null && object.containsKey("rootResources")) {
+                    JSONArray rootResources = object.get("rootResources").isArray();
+                    for (int i = 0; i < rootResources.size(); i++) {
+                        JSONObject rootResource = rootResources.get(i).isObject();
+                        String regex = rootResource.get("regex").isString().stringValue();
+                        String fqn = rootResource.get("fqn").isString().stringValue();
+                        String path = rootResource.get("path").isString().stringValue();
+                        availableServices.add(new RestServiceInfo(fqn, regex, path));
+                    }
+                }
 
-                                   checkWsConnection();
-                               }
-                           })
-                           .catchError(new Operation<PromiseError>() {
-                               @Override
-                               public void apply(PromiseError arg) throws OperationException {
-                                   Log.error(getClass(), ">>>>>>>>>>>>>>>>>>>>>>>>>>>>> " + arg.getMessage());
-                                   final String url =
-                                           restContext + "/workspace-agent-health/" + devMachine.getWorkspace() + "/" + WSAGENT_REFERENCE;
-                                   asyncRequestFactory.createGetRequest(url)
-                                                      .header(ACCEPT, APPLICATION_JSON)
-                                                      .send(dtoUnmarshallerFactory.newUnmarshaller(AgentHealthStateDto.class)).then(
-                                           new Operation<AgentHealthStateDto>() {
-                                               @Override
-                                               public void apply(AgentHealthStateDto arg) throws OperationException {
-                                                   Log.info(getClass(), arg.toString());
-                                                   if (WorkspaceStatus.RUNNING.equals(arg.getWorkspaceStatus())) {
-                                                       if (arg.getAgentStates().containsKey(WSAGENT_REFERENCE) ||
-                                                           arg.getAgentStates().get(WSAGENT_REFERENCE).getCode() != 200) {
-                                                           dialogFactory.createMessageDialog("Workspace Agent",
-                                                                                             new Label(
-                                                                                                     "Workspace Agent not response but workspace still running." +
-                                                                                                     "You need to stop workspace, try to fix problem and start it again"),
-                                                                                             new ConfirmCallback() {
-                                                                                                 @Override
-                                                                                                 public void accepted() {
-                                                                                                     stopWorkspace();
-                                                                                                 }
-                                                                                             }, "Stop workspace").show();
-                                                       }
-
-                                                       if (arg.getAgentStates().get(WSAGENT_REFERENCE).getCode() == 200) {
-                                                           dialogFactory.createMessageDialog("Workspace Agent",
-                                                                                             new Label(
-                                                                                                     "Workspace Agent not available for you browser." +
-                                                                                                     "But still available for our infrastructure. Looks like you have problem in your networking setting." +
-                                                                                                     "Do you want to stop workspace?"),
-                                                                                             new ConfirmCallback() {
-                                                                                                 @Override
-                                                                                                 public void accepted() {
-                                                                                                     stopWorkspace();
-                                                                                                 }
-                                                                                             }, "Stop workspace").show();
-                                                       }
-                                                   }
-                                               }
-                                           }).catchError(new Operation<PromiseError>() {
+                checkWsConnection();
+            }
+        }).catchError(new Operation<PromiseError>() {
+            @Override
+            public void apply(PromiseError arg) throws OperationException {
+                asyncRequestFactory.createGetRequest(pingUrl)
+                                   .header(ACCEPT, APPLICATION_JSON)
+                                   .send(dtoUnmarshallerFactory.newUnmarshaller(AgentHealthStateDto.class))
+                                   .then(new Operation<AgentHealthStateDto>() {
                                        @Override
-                                       public void apply(PromiseError arg) throws OperationException {
-
+                                       public void apply(AgentHealthStateDto arg) throws OperationException {
+                                           if (RUNNING.equals(arg.getWorkspaceStatus())) {
+                                               checkStateOfWsAgent(arg);
+                                           }
                                        }
-                                   });
-                               }
-                           });
+                                   }).catchError(new Operation<PromiseError>() {
+                    @Override
+                    public void apply(PromiseError arg) throws OperationException {
+                        Log.error(getClass(), arg.getMessage());
+                    }
+                });
+            }
+        });
+    }
+
+    private void checkStateOfWsAgent(AgentHealthStateDto agentHealthStateDto) {
+        if (!WSAGENT_REFERENCE.equals(agentHealthStateDto.getAgentId())) {
+            return;
+        }
+
+        final AgentStateDto agentState = agentHealthStateDto.getAgentState();
+        if (agentState == null) {
+            return;
+        }
+
+        final int statusCode = agentState.getCode();
+
+        String infoWindowTitle = "Workspace Agent";
+
+        if (statusCode == 200) {
+            dialogFactory.createMessageDialog(infoWindowTitle,
+                                              "Your workspace is not responding. To fix the problem, verify you have a good " +
+                                              "network connection and restart the workspace.",
+                                              new ConfirmCallback() {
+                                                  @Override
+                                                  public void accepted() {
+                                                  }
+                                              }).show();
+        } else {
+            dialogFactory.createMessageDialog(infoWindowTitle,
+                                              "Your workspace has stopped responding. To fix the problem, " +
+                                              "restart the workspace in the dashboard.",
+                                              new ConfirmCallback() {
+                                                  @Override
+                                                  public void accepted() {
+                                                  }
+                                              }).show();
+        }
     }
 
     /**

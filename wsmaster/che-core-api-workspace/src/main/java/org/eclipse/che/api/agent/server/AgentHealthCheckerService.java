@@ -15,8 +15,6 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
-import io.swagger.annotations.Example;
-import io.swagger.annotations.ExampleProperty;
 
 import org.eclipse.che.api.core.BadRequestException;
 import org.eclipse.che.api.core.ConflictException;
@@ -30,8 +28,7 @@ import org.eclipse.che.api.machine.server.model.impl.MachineImpl;
 import org.eclipse.che.api.workspace.server.WorkspaceManager;
 import org.eclipse.che.api.workspace.server.model.impl.WorkspaceImpl;
 import org.eclipse.che.api.workspace.shared.dto.AgentHealthStateDto;
-import org.eclipse.che.api.workspace.shared.dto.AgentState;
-import org.eclipse.che.dto.server.DtoFactory;
+import org.eclipse.che.api.workspace.shared.dto.AgentStateDto;
 
 import javax.inject.Inject;
 import javax.ws.rs.GET;
@@ -47,23 +44,22 @@ import static java.lang.String.format;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 import static javax.ws.rs.core.Response.Status.NOT_FOUND;
 import static org.eclipse.che.api.machine.shared.Constants.WSAGENT_REFERENCE;
+import static org.eclipse.che.dto.server.DtoFactory.newDto;
 
 /**
- * //
+ * Service for checking state of the workspace agent.
  *
  * @author Vitalii Parfonov
+ * @author Valeriy Svydenko
  */
 @Api(value = "/workspace-agent-health", description = "Workspace Agent Health Checker")
 @Path("/workspace-agent-health")
 public class AgentHealthCheckerService extends Service {
-
-
     private final Map<String, AgentHealthChecker> agentHealthCheckers;
     private final WorkspaceManager                workspaceManager;
 
     @Inject
-    public AgentHealthCheckerService(Set<AgentHealthChecker> agentHealthCheckers,
-                                     WorkspaceManager workspaceManager) {
+    public AgentHealthCheckerService(Set<AgentHealthChecker> agentHealthCheckers, WorkspaceManager workspaceManager) {
         this.workspaceManager = workspaceManager;
         this.agentHealthCheckers = new HashMap<>(agentHealthCheckers.size());
         for (AgentHealthChecker agentHealthChecker : agentHealthCheckers) {
@@ -71,56 +67,49 @@ public class AgentHealthCheckerService extends Service {
         }
     }
 
-
     @GET
     @Path("/{key}/{agentId}")
     @Produces(APPLICATION_JSON)
-    @ApiOperation(value = "Get the workspace by the composite key",
-                  notes = "Composite key can be just workspace ID or in the " +
-                          "namespace:workspace_name form, where namespace is optional (e.g :workspace_name is valid key too.")
+    @ApiOperation(value = "Get state of the workspace agent by the workspace id and agent id")
     @ApiResponses({@ApiResponse(code = 200, message = "The response contains requested workspace entity"),
                    @ApiResponse(code = 404, message = "The workspace with specified id does not exist"),
                    @ApiResponse(code = 403, message = "The user is not workspace owner"),
                    @ApiResponse(code = 500, message = "Internal server error occurred")})
-    public AgentHealthStateDto checkAgentHealth(@ApiParam(value = "Composite key",
-                                                          examples = @Example({@ExampleProperty("workspace12345678"),
-                                                                               @ExampleProperty("namespace:workspace_name"),
-                                                                               @ExampleProperty(":workspace_name")}))
+    public AgentHealthStateDto checkAgentHealth(@ApiParam(value = "Workspace id")
                                                 @PathParam("key") String key,
+                                                @ApiParam(value = "Workspace agent id")
                                                 @PathParam("agentId") String agentId) throws NotFoundException,
                                                                                              ServerException,
                                                                                              ForbiddenException,
                                                                                              BadRequestException,
-                                                                                                      UnauthorizedException,
-                                                                                                      IOException,
-                                                                                                      ConflictException {
+                                                                                             UnauthorizedException,
+                                                                                             IOException,
+                                                                                             ConflictException {
         final AgentHealthChecker agentHealthChecker = agentHealthCheckers.get(agentId);
         validateKey(key);
         final WorkspaceImpl workspace = workspaceManager.getWorkspace(key);
         if (WorkspaceStatus.RUNNING != workspace.getStatus()) {
-            return DtoFactory.newDto(AgentHealthStateDto.class).withWorkspaceStatus(workspace.getStatus());
+            return newDto(AgentHealthStateDto.class).withWorkspaceStatus(workspace.getStatus());
         }
 
         final MachineImpl devMachine = workspace.getRuntime().getDevMachine();
         if (devMachine == null) {
-            Map<String, AgentState> agentStates = new HashMap<>(1);
-            agentStates.put(WSAGENT_REFERENCE, DtoFactory.newDto(AgentState.class).withCode(NOT_FOUND.getStatusCode())
-                                                         .withReason("Workspace Agent not available if Dev machine are not RUNNING"));
-            return DtoFactory.newDto(AgentHealthStateDto.class).withWorkspaceStatus(workspace.getStatus())
-                             .withAgentStates(agentStates);
+            final AgentStateDto agentState = newDto(AgentStateDto.class)
+                    .withCode(NOT_FOUND.getStatusCode())
+                    .withReason("Workspace Agent isn't available if Dev machine isn't RUNNING");
+
+            return newDto(AgentHealthStateDto.class)
+                    .withWorkspaceStatus(workspace.getStatus())
+                    .withAgentId(WSAGENT_REFERENCE)
+                    .withAgentState(agentState);
         }
 
         final AgentHealthStateDto check = agentHealthChecker.check(devMachine);
         check.setWorkspaceStatus(workspace.getStatus());
         return check;
-
     }
 
-
-    /*
-    * Validate composite key.
-    *
-    */
+    /* Validate composite key. */
     private void validateKey(String key) throws BadRequestException {
         String[] parts = key.split(":", -1); // -1 is to prevent skipping trailing part
         switch (parts.length) {
@@ -138,6 +127,4 @@ public class AgentHealthCheckerService extends Service {
             }
         }
     }
-
-
 }

@@ -15,11 +15,11 @@ import com.google.inject.multibindings.Multibinder;
 import com.google.inject.name.Names;
 import com.google.inject.persist.jpa.JpaPersistModule;
 
+import org.eclipse.che.api.agent.server.AgentHealthChecker;
 import org.eclipse.che.api.agent.server.launcher.AgentLauncher;
 import org.eclipse.che.api.core.rest.CheJsonProvider;
 import org.eclipse.che.api.core.rest.MessageBodyAdapter;
 import org.eclipse.che.api.core.rest.MessageBodyAdapterInterceptor;
-import org.eclipse.che.api.agent.server.AgentHealthCheckerService;
 import org.eclipse.che.account.api.AccountModule;
 import org.eclipse.che.api.core.jdbc.jpa.eclipselink.EntityListenerInjectionManagerInitializer;
 import org.eclipse.che.api.core.jdbc.jpa.guice.JpaInitializer;
@@ -92,11 +92,8 @@ public class WsMasterModule extends AbstractModule {
                 new org.eclipse.che.api.machine.server.model.impl.ServerConfImpl(Constants.WSAGENT_DEBUG_REFERENCE, "4403/tcp", "http",
                                                                                  null));
 
-
-        Multibinder<org.eclipse.che.api.agent.server.AgentHealthChecker> agentHealthCheckerMultibinder = Multibinder.newSetBinder(binder(),
-                                                                             org.eclipse.che.api.agent.server.AgentHealthChecker.class);
+        Multibinder<AgentHealthChecker> agentHealthCheckerMultibinder = Multibinder.newSetBinder(binder(), AgentHealthChecker.class);
         agentHealthCheckerMultibinder.addBinding().to(WsAgentHealthChecker.class);
-
 
         bind(org.eclipse.che.api.machine.server.recipe.RecipeLoader.class);
         Multibinder.newSetBinder(binder(), String.class, Names.named("predefined.recipe.path"))

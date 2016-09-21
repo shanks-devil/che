@@ -18,18 +18,12 @@ import org.eclipse.che.api.core.ServerException;
 import org.eclipse.che.api.core.UnauthorizedException;
 import org.eclipse.che.api.core.model.machine.Machine;
 import org.eclipse.che.api.core.model.machine.Server;
-import org.eclipse.che.api.core.model.workspace.WorkspaceStatus;
 import org.eclipse.che.api.core.rest.HttpJsonRequest;
 import org.eclipse.che.api.core.rest.HttpJsonRequestFactory;
 import org.eclipse.che.api.core.rest.HttpJsonResponse;
-import org.eclipse.che.api.machine.server.model.impl.MachineImpl;
-import org.eclipse.che.api.machine.server.model.impl.ServerImpl;
 import org.eclipse.che.api.machine.shared.Constants;
-import org.eclipse.che.api.workspace.server.WorkspaceManager;
-import org.eclipse.che.api.workspace.server.model.impl.WorkspaceImpl;
 import org.eclipse.che.api.workspace.shared.dto.AgentHealthStateDto;
-import org.eclipse.che.api.workspace.shared.dto.AgentState;
-import org.eclipse.che.dto.server.DtoFactory;
+import org.eclipse.che.api.workspace.shared.dto.AgentStateDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,30 +32,27 @@ import javax.inject.Named;
 import javax.inject.Singleton;
 import javax.ws.rs.HttpMethod;
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.Map;
 
-import static java.lang.String.format;
 import static javax.ws.rs.core.Response.Status.NOT_FOUND;
 import static javax.ws.rs.core.Response.Status.SERVICE_UNAVAILABLE;
 import static org.eclipse.che.api.machine.shared.Constants.WSAGENT_REFERENCE;
+import static org.eclipse.che.dto.server.DtoFactory.newDto;
 
 /**
- * //
+ * Mechanism for checking workspace agent's state.
  *
  * @author Vitalii Parfonov
+ * @author Valeriy Svydenko
  */
 @Singleton
 public class WsAgentHealthChecker implements AgentHealthChecker {
+    private static final String WS_AGENT_SERVER_NOT_FOUND_ERROR = "Workspace agent server not found in dev machine.";
 
     protected static final Logger LOG = LoggerFactory.getLogger(WsAgentHealthChecker.class);
 
-
-
     private final HttpJsonRequestFactory httpJsonRequestFactory;
     private final int                    wsAgentPingConnectionTimeoutMs;
-
-    private static final String WS_AGENT_SERVER_NOT_FOUND_ERROR = "Workspace agent server not found in dev machine.";
 
     @Inject
     public WsAgentHealthChecker(HttpJsonRequestFactory httpJsonRequestFactory,
@@ -70,7 +61,6 @@ public class WsAgentHealthChecker implements AgentHealthChecker {
         this.wsAgentPingConnectionTimeoutMs = wsAgentPingConnectionTimeoutMs;
     }
 
-
     @Override
     public String agentId() {
         return WSAGENT_REFERENCE;
@@ -78,13 +68,12 @@ public class WsAgentHealthChecker implements AgentHealthChecker {
 
     @Override
     public AgentHealthStateDto check(Machine devMachine) throws NotFoundException,
-                                                        ServerException,
-                                                        ForbiddenException,
-                                                        BadRequestException,
-                                                        UnauthorizedException,
-                                                        IOException,
-                                                        ConflictException {
-        Map<String, AgentState> agentStates = new HashMap<>(1);
+                                                                ServerException,
+                                                                ForbiddenException,
+                                                                BadRequestException,
+                                                                UnauthorizedException,
+                                                                IOException,
+                                                                ConflictException {
         final Map<String, ? extends Server> servers = devMachine.getRuntime().getServers();
         Server wsAgent = null;
         for (Server ser : servers.values()) {
@@ -92,22 +81,22 @@ public class WsAgentHealthChecker implements AgentHealthChecker {
                 wsAgent = ser;
             }
         }
-        final AgentHealthStateDto agentHealthStateDto = DtoFactory.newDto(AgentHealthStateDto.class);
+        final AgentHealthStateDto agentHealthStateDto = newDto(AgentHealthStateDto.class).withAgentId(WSAGENT_REFERENCE);
         if (wsAgent == null) {
-            agentStates.put(WSAGENT_REFERENCE, DtoFactory.newDto(AgentState.class).withCode(NOT_FOUND.getStatusCode())
-                                                         .withReason("Workspace Agent not available if Dev machine are not RUNNING"));
-            return agentHealthStateDto.withAgentStates(agentStates);
+            return agentHealthStateDto.withAgentState(newDto(AgentStateDto.class)
+                                                              .withCode(NOT_FOUND.getStatusCode())
+                                                              .withReason("Workspace Agent not available if Dev machine are not RUNNING"));
         }
         try {
             final HttpJsonRequest pingRequest = createPingRequest(devMachine);
             final HttpJsonResponse response = pingRequest.request();
-            agentStates.put(WSAGENT_REFERENCE, DtoFactory.newDto(AgentState.class).withCode(response.getResponseCode())
-                                                         .withReason(response.asString()));
-            agentHealthStateDto.setAgentStates(agentStates);
+            agentHealthStateDto.setAgentState(newDto(AgentStateDto.class)
+                                                      .withCode(response.getResponseCode())
+                                                      .withReason(response.asString()));
         } catch (IOException e) {
-            agentStates.put(WSAGENT_REFERENCE, DtoFactory.newDto(AgentState.class).withCode(SERVICE_UNAVAILABLE.getStatusCode())
-                                                         .withReason(e.getMessage()));
-            agentHealthStateDto.setAgentStates(agentStates);
+            agentHealthStateDto.setAgentState(newDto(AgentStateDto.class)
+                                                      .withCode(SERVICE_UNAVAILABLE.getStatusCode())
+                                                      .withReason(e.getMessage()));
         }
         return agentHealthStateDto;
     }
@@ -131,7 +120,5 @@ public class WsAgentHealthChecker implements AgentHealthChecker {
                                      .setMethod(HttpMethod.GET)
                                      .setTimeout(wsAgentPingConnectionTimeoutMs);
     }
-
-
 
 }

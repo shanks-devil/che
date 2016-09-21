@@ -10,7 +10,6 @@
  *******************************************************************************/
 package org.eclipse.che.api.workspace.server.launcher;
 
-import org.eclipse.che.api.agent.server.AgentHealthChecker;
 import org.eclipse.che.api.agent.server.launcher.AgentLauncher;
 import org.eclipse.che.api.agent.shared.model.Agent;
 import org.eclipse.che.api.core.ApiException;
@@ -38,9 +37,6 @@ import javax.ws.rs.HttpMethod;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.util.Map;
-import java.util.Set;
-
-import static org.eclipse.che.api.machine.shared.Constants.WSAGENT_REFERENCE;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static org.eclipse.che.api.workspace.shared.Constants.WS_AGENT_PROCESS_NAME;

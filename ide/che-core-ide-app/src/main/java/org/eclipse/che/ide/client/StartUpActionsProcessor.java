@@ -33,8 +33,8 @@ import java.util.List;
 @Singleton
 public class StartUpActionsProcessor implements WsAgentComponent {
 
-    private final EventBus eventBus;
-    private final AppContext appContext;
+    private final EventBus      eventBus;
+    private final AppContext    appContext;
     private final ActionManager actionManager;
 
     @Inject
@@ -58,12 +58,10 @@ public class StartUpActionsProcessor implements WsAgentComponent {
                     }
                 }
                 callback.onSuccess(StartUpActionsProcessor.this);
-
             }
 
             @Override
             public void onWsAgentStopped(WsAgentStateEvent event) {
-
             }
         });
     }

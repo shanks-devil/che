@@ -15,15 +15,15 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.web.bindery.event.shared.EventBus;
 
-import org.eclipse.che.ide.api.machine.events.WsAgentStateEvent;
-import org.eclipse.che.ide.api.machine.events.WsAgentStateHandler;
-import org.eclipse.che.ide.api.project.ProjectTypeServiceClient;
 import org.eclipse.che.api.project.shared.dto.ProjectTypeDto;
 import org.eclipse.che.api.promises.client.Operation;
 import org.eclipse.che.api.promises.client.OperationException;
 import org.eclipse.che.api.promises.client.PromiseError;
 import org.eclipse.che.ide.api.app.AppContext;
 import org.eclipse.che.ide.api.component.WsAgentComponent;
+import org.eclipse.che.ide.api.machine.events.WsAgentStateEvent;
+import org.eclipse.che.ide.api.machine.events.WsAgentStateHandler;
+import org.eclipse.che.ide.api.project.ProjectTypeServiceClient;
 import org.eclipse.che.ide.api.project.type.ProjectTypeRegistry;
 
 import java.util.List;
@@ -35,10 +35,10 @@ import java.util.List;
 @Singleton
 public class ProjectTypeComponent implements WsAgentComponent {
 
-    private final EventBus eventBus;
+    private final EventBus                 eventBus;
     private final ProjectTypeServiceClient projectTypeService;
-    private final ProjectTypeRegistry projectTypeRegistry;
-    private final AppContext          appContext;
+    private final ProjectTypeRegistry      projectTypeRegistry;
+    private final AppContext               appContext;
 
     @Inject
     public ProjectTypeComponent(EventBus eventBus,
@@ -72,7 +72,6 @@ public class ProjectTypeComponent implements WsAgentComponent {
 
             @Override
             public void onWsAgentStopped(WsAgentStateEvent event) {
-
             }
         });
 
