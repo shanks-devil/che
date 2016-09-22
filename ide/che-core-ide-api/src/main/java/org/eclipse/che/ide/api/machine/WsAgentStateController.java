@@ -26,7 +26,6 @@ import org.eclipse.che.api.promises.client.PromiseError;
 import org.eclipse.che.api.promises.client.callback.AsyncPromiseHelper;
 import org.eclipse.che.api.workspace.shared.dto.AgentHealthStateDto;
 import org.eclipse.che.api.workspace.shared.dto.AgentStateDto;
-import org.eclipse.che.ide.api.dialogs.ConfirmCallback;
 import org.eclipse.che.ide.api.dialogs.DialogFactory;
 import org.eclipse.che.ide.api.machine.events.WsAgentStateEvent;
 import org.eclipse.che.ide.rest.AsyncRequestFactory;
@@ -198,22 +197,20 @@ public class WsAgentStateController implements ConnectionOpenedHandler, Connecti
         asyncRequestFactory.createGetRequest(url).send(new StringUnmarshaller()).then(new Operation<String>() {
             @Override
             public void apply(String result) throws OperationException {
-                JSONObject object = null;
                 try {
-                    object = JSONParser.parseStrict(result).isObject();
+                    JSONObject object = JSONParser.parseStrict(result).isObject();
+                    if (object.containsKey("rootResources")) {
+                        JSONArray rootResources = object.get("rootResources").isArray();
+                        for (int i = 0; i < rootResources.size(); i++) {
+                            JSONObject rootResource = rootResources.get(i).isObject();
+                            String regex = rootResource.get("regex").isString().stringValue();
+                            String fqn = rootResource.get("fqn").isString().stringValue();
+                            String path = rootResource.get("path").isString().stringValue();
+                            availableServices.add(new RestServiceInfo(fqn, regex, path));
+                        }
+                    }
                 } catch (Exception exception) {
                     Log.warn(getClass(), "Parse root resources failed.");
-                }
-
-                if (object != null && object.containsKey("rootResources")) {
-                    JSONArray rootResources = object.get("rootResources").isArray();
-                    for (int i = 0; i < rootResources.size(); i++) {
-                        JSONObject rootResource = rootResources.get(i).isObject();
-                        String regex = rootResource.get("regex").isString().stringValue();
-                        String fqn = rootResource.get("fqn").isString().stringValue();
-                        String path = rootResource.get("path").isString().stringValue();
-                        availableServices.add(new RestServiceInfo(fqn, regex, path));
-                    }
                 }
 
                 checkWsConnection();
@@ -259,20 +256,12 @@ public class WsAgentStateController implements ConnectionOpenedHandler, Connecti
             dialogFactory.createMessageDialog(infoWindowTitle,
                                               "Your workspace is not responding. To fix the problem, verify you have a good " +
                                               "network connection and restart the workspace.",
-                                              new ConfirmCallback() {
-                                                  @Override
-                                                  public void accepted() {
-                                                  }
-                                              }).show();
+                                              null).show();
         } else {
             dialogFactory.createMessageDialog(infoWindowTitle,
                                               "Your workspace has stopped responding. To fix the problem, " +
                                               "restart the workspace in the dashboard.",
-                                              new ConfirmCallback() {
-                                                  @Override
-                                                  public void accepted() {
-                                                  }
-                                              }).show();
+                                              null).show();
         }
     }
 
