@@ -24,6 +24,7 @@ import org.eclipse.che.api.core.jdbc.jpa.eclipselink.EntityListenerInjectionMana
 import org.eclipse.che.api.core.jdbc.jpa.guice.JpaInitializer;
 import org.eclipse.che.api.machine.server.jpa.MachineJpaModule;
 import org.eclipse.che.api.machine.shared.Constants;
+import org.eclipse.che.api.workspace.server.StopWorkspaceBeforeRemoveEventSubscriber;
 import org.eclipse.che.api.workspace.server.WorkspaceConfigMessageBodyAdapter;
 import org.eclipse.che.api.workspace.server.WorkspaceMessageBodyAdapter;
 import org.eclipse.che.api.ssh.server.jpa.SshJpaModule;
@@ -55,6 +56,7 @@ public class WsMasterModule extends AbstractModule {
         install(new MachineJpaModule());
         bind(TokenValidator.class).to(org.eclipse.che.api.local.DummyTokenValidator.class);
         bind(org.eclipse.che.api.local.LocalDataMigrator.class).asEagerSingleton();
+        bind(StopWorkspaceBeforeRemoveEventSubscriber.class);
 
         bind(org.eclipse.che.api.core.rest.ApiInfoService.class);
         bind(org.eclipse.che.api.project.server.template.ProjectTemplateDescriptionLoader.class).asEagerSingleton();
