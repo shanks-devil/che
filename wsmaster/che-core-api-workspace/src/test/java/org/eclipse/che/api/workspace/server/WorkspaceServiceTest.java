@@ -17,6 +17,7 @@ import com.jayway.restassured.response.Response;
 
 import org.eclipse.che.account.shared.model.Account;
 import org.eclipse.che.account.spi.AccountImpl;
+import org.eclipse.che.api.agent.server.WsAgentHealthChecker;
 import org.eclipse.che.api.core.model.machine.MachineStatus;
 import org.eclipse.che.api.core.model.project.ProjectConfig;
 import org.eclipse.che.api.core.model.workspace.WorkspaceConfig;
@@ -47,6 +48,7 @@ import org.eclipse.che.api.workspace.shared.dto.ProjectConfigDto;
 import org.eclipse.che.api.workspace.shared.dto.SourceStorageDto;
 import org.eclipse.che.api.workspace.shared.dto.WorkspaceConfigDto;
 import org.eclipse.che.api.workspace.shared.dto.WorkspaceDto;
+import org.eclipse.che.api.workspace.shared.dto.WsAgentHealthStateDto;
 import org.eclipse.che.commons.env.EnvironmentContext;
 import org.eclipse.che.commons.subject.SubjectImpl;
 import org.eclipse.che.dto.server.DtoFactory;
@@ -133,13 +135,16 @@ public class WorkspaceServiceTest {
     private MachineProcessManager machineProcessManager;
     @Mock
     private WorkspaceValidator    validator;
+    @Mock
+    private WsAgentHealthChecker  wsAgentHealthChecker;
 
-    private WorkspaceService      service;
+    private WorkspaceService service;
 
     @BeforeMethod
     public void setup() {
         service = new WorkspaceService(wsManager,
                                        validator,
+                                       wsAgentHealthChecker,
                                        new WorkspaceServiceLinksInjector(new MachineServiceLinksInjector()));
     }
 
@@ -357,7 +362,7 @@ public class WorkspaceServiceTest {
     @Test
     public void shouldStartWorkspace() throws Exception {
         final WorkspaceImpl workspace = createWorkspace(createConfigDto());
-        when(wsManager.startWorkspace(any(),  any(), any())).thenReturn(workspace);
+        when(wsManager.startWorkspace(any(), any(), any())).thenReturn(workspace);
         when(wsManager.getWorkspace(workspace.getId())).thenReturn(workspace);
 
         final Response response = given().auth()
@@ -828,6 +833,46 @@ public class WorkspaceServiceTest {
     }
 
     @Test
+    public void stateOfWsAgentShouldBeChecked() throws Exception {
+        final WorkspaceImpl workspace = createWorkspace(createConfigDto());
+        workspace.setStatus(RUNNING);
+
+        WsAgentHealthStateDto wsAgentState = newDto(WsAgentHealthStateDto.class);
+        WorkspaceRuntimeImpl runtime = mock(WorkspaceRuntimeImpl.class);
+        MachineImpl machine = mock(MachineImpl.class);
+        when(runtime.getDevMachine()).thenReturn(machine);
+        when(wsAgentHealthChecker.check(machine)).thenReturn(wsAgentState);
+
+        workspace.setRuntime(runtime);
+
+        when(wsManager.getWorkspace(workspace.getId())).thenReturn(workspace);
+
+        final Response response = given().auth()
+                                         .basic(ADMIN_USER_NAME, ADMIN_USER_PASSWORD)
+                                         .when()
+                                         .get(SECURE_PATH + "/workspace/check/" + workspace.getId());
+
+        verify(wsAgentHealthChecker).check(machine);
+        assertEquals(RUNNING, wsAgentState.getWorkspaceStatus());
+        assertEquals(200, response.getStatusCode());
+    }
+
+    @Test
+    public void stateOfWsAgentShouldNotBeCheckedIfWsIsNotRunning() throws Exception {
+        final WorkspaceImpl workspace = createWorkspace(createConfigDto());
+        workspace.setStatus(STARTING);
+        when(wsManager.getWorkspace(workspace.getId())).thenReturn(workspace);
+
+        final Response response = given().auth()
+                                         .basic(ADMIN_USER_NAME, ADMIN_USER_PASSWORD)
+                                         .when()
+                                         .get(SECURE_PATH + "/workspace/check/" + workspace.getId());
+
+        verify(wsAgentHealthChecker, never()).check(any());
+        assertEquals(200, response.getStatusCode());
+    }
+
+    @Test
     public void shouldReturnEmptyListIfNotSnapshotsFound() throws Exception {
         // given
         String workspaceId = "testWsId1";
@@ -902,7 +947,7 @@ public class WorkspaceServiceTest {
         final WorkspaceConfigImpl config = WorkspaceConfigImpl.builder()
                                                               .setName("dev-workspace")
                                                               .setDefaultEnv("dev-env")
-                                                              .setEnvironments(singletonMap("dev-env",new EnvironmentImpl(createEnvDto())))
+                                                              .setEnvironments(singletonMap("dev-env", new EnvironmentImpl(createEnvDto())))
                                                               .setCommands(singletonList(createCommandDto()))
                                                               .setProjects(singletonList(createProjectDto()))
                                                               .build();

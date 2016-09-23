@@ -15,7 +15,7 @@ import com.google.inject.multibindings.Multibinder;
 import com.google.inject.name.Names;
 import com.google.inject.persist.jpa.JpaPersistModule;
 
-import org.eclipse.che.api.agent.server.AgentHealthChecker;
+import org.eclipse.che.api.agent.server.WsAgentHealthChecker;
 import org.eclipse.che.api.agent.server.launcher.AgentLauncher;
 import org.eclipse.che.api.core.rest.CheJsonProvider;
 import org.eclipse.che.api.core.rest.MessageBodyAdapter;
@@ -27,7 +27,7 @@ import org.eclipse.che.api.machine.server.jpa.MachineJpaModule;
 import org.eclipse.che.api.machine.shared.Constants;
 import org.eclipse.che.api.workspace.server.WorkspaceConfigMessageBodyAdapter;
 import org.eclipse.che.api.workspace.server.WorkspaceMessageBodyAdapter;
-import org.eclipse.che.api.agent.server.WsAgentHealthChecker;
+import org.eclipse.che.api.agent.server.WsAgentHealthCheckerImpl;
 import org.eclipse.che.api.ssh.server.jpa.SshJpaModule;
 import org.eclipse.che.api.user.server.CheUserCreator;
 import org.eclipse.che.api.user.server.TokenValidator;
@@ -70,7 +70,6 @@ public class WsMasterModule extends AbstractModule {
         bind(org.eclipse.che.api.workspace.server.stack.StackLoader.class);
         bind(org.eclipse.che.api.workspace.server.stack.StackService.class);
         bind(org.eclipse.che.api.workspace.server.WorkspaceService.class);
-        bind(org.eclipse.che.api.agent.server.AgentHealthCheckerService.class);
         bind(org.eclipse.che.api.workspace.server.event.WorkspaceMessenger.class).asEagerSingleton();
         bind(org.eclipse.che.plugin.docker.machine.ext.DockerMachineExtServerChecker.class);
         bind(org.eclipse.che.plugin.docker.machine.ext.DockerMachineTerminalChecker.class);
@@ -92,8 +91,7 @@ public class WsMasterModule extends AbstractModule {
                 new org.eclipse.che.api.machine.server.model.impl.ServerConfImpl(Constants.WSAGENT_DEBUG_REFERENCE, "4403/tcp", "http",
                                                                                  null));
 
-        Multibinder<AgentHealthChecker> agentHealthCheckerMultibinder = Multibinder.newSetBinder(binder(), AgentHealthChecker.class);
-        agentHealthCheckerMultibinder.addBinding().to(WsAgentHealthChecker.class);
+        bind(WsAgentHealthChecker.class).to(WsAgentHealthCheckerImpl.class);
 
         bind(org.eclipse.che.api.machine.server.recipe.RecipeLoader.class);
         Multibinder.newSetBinder(binder(), String.class, Names.named("predefined.recipe.path"))

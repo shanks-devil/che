@@ -14,17 +14,17 @@ import org.eclipse.che.api.core.model.workspace.WorkspaceStatus;
 import org.eclipse.che.dto.shared.DTO;
 
 /**
- * Describes status of the agent
+ * Describes status of the ws agent.
  *
  * @author Vitalii Parfonov
  * @author Valeriy Svydenko
  */
 @DTO
-public interface AgentHealthStateDto {
+public interface WsAgentHealthStateDto {
 
     void setWorkspaceStatus(WorkspaceStatus status);
 
-    AgentHealthStateDto withWorkspaceStatus(WorkspaceStatus status);
+    WsAgentHealthStateDto withWorkspaceStatus(WorkspaceStatus status);
 
     /**
      * Returns the status of the current workspace instance.
@@ -36,15 +36,8 @@ public interface AgentHealthStateDto {
 
     void setAgentState(AgentStateDto agentState);
 
-    AgentHealthStateDto withAgentState(AgentStateDto agentState);
+    WsAgentHealthStateDto withAgentState(AgentStateDto agentState);
 
     /** Returns state of the agent */
     AgentStateDto getAgentState();
-
-    void setAgentId(String agentId);
-
-    AgentHealthStateDto withAgentId(String agentId);
-
-    /** Returns id of the agent */
-    String getAgentId();
 }

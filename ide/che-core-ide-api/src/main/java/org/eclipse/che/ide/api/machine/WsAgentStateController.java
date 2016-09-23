@@ -24,8 +24,8 @@ import org.eclipse.che.api.promises.client.OperationException;
 import org.eclipse.che.api.promises.client.Promise;
 import org.eclipse.che.api.promises.client.PromiseError;
 import org.eclipse.che.api.promises.client.callback.AsyncPromiseHelper;
-import org.eclipse.che.api.workspace.shared.dto.AgentHealthStateDto;
 import org.eclipse.che.api.workspace.shared.dto.AgentStateDto;
+import org.eclipse.che.api.workspace.shared.dto.WsAgentHealthStateDto;
 import org.eclipse.che.ide.api.dialogs.DialogFactory;
 import org.eclipse.che.ide.api.machine.events.WsAgentStateEvent;
 import org.eclipse.che.ide.rest.AsyncRequestFactory;
@@ -48,7 +48,6 @@ import java.util.List;
 
 import static com.google.common.collect.Lists.newArrayList;
 import static org.eclipse.che.api.core.model.workspace.WorkspaceStatus.RUNNING;
-import static org.eclipse.che.api.machine.shared.Constants.WSAGENT_REFERENCE;
 import static org.eclipse.che.ide.MimeType.APPLICATION_JSON;
 import static org.eclipse.che.ide.api.machine.WsAgentState.STARTED;
 import static org.eclipse.che.ide.api.machine.WsAgentState.STOPPED;
@@ -109,14 +108,14 @@ public class WsAgentStateController implements ConnectionOpenedHandler, Connecti
     }
 
     private void checkWsAgentState() {
-        final String url = restContext + "/workspace-agent-health/" + devMachine.getWorkspace() + "/" + WSAGENT_REFERENCE;
-        final Unmarshallable<AgentHealthStateDto> unmarshaller = dtoUnmarshallerFactory.newUnmarshaller(AgentHealthStateDto.class);
-        final Promise<AgentHealthStateDto> wsAgentState = asyncRequestFactory.createGetRequest(url)
-                                                                             .header(ACCEPT, APPLICATION_JSON)
-                                                                             .send(unmarshaller);
-        wsAgentState.then(new Operation<AgentHealthStateDto>() {
+        final String url = restContext + "/workspace/check/" + devMachine.getWorkspace();
+        final Unmarshallable<WsAgentHealthStateDto> unmarshaller = dtoUnmarshallerFactory.newUnmarshaller(WsAgentHealthStateDto.class);
+        final Promise<WsAgentHealthStateDto> wsAgentState = asyncRequestFactory.createGetRequest(url)
+                                                                               .header(ACCEPT, APPLICATION_JSON)
+                                                                               .send(unmarshaller);
+        wsAgentState.then(new Operation<WsAgentHealthStateDto>() {
             @Override
-            public void apply(AgentHealthStateDto arg) throws OperationException {
+            public void apply(WsAgentHealthStateDto arg) throws OperationException {
                 if (RUNNING.equals(arg.getWorkspaceStatus())) {
                     checkStateOfWsAgent(arg);
                 }
@@ -193,7 +192,7 @@ public class WsAgentStateController implements ConnectionOpenedHandler, Connecti
     private void checkHttpConnection() {
         //here we add trailing slash because {@link org.eclipse.che.api.core.rest.ApiInfoService} mapped in this way
         String url = devMachine.getWsAgentBaseUrl() + '/';
-        final String pingUrl = restContext + "/workspace-agent-health/" + devMachine.getWorkspace() + '/' + WSAGENT_REFERENCE;
+        final String pingUrl = restContext + "/workspace/check/" + devMachine.getWorkspace();
         asyncRequestFactory.createGetRequest(url).send(new StringUnmarshaller()).then(new Operation<String>() {
             @Override
             public void apply(String result) throws OperationException {
@@ -220,10 +219,10 @@ public class WsAgentStateController implements ConnectionOpenedHandler, Connecti
             public void apply(PromiseError arg) throws OperationException {
                 asyncRequestFactory.createGetRequest(pingUrl)
                                    .header(ACCEPT, APPLICATION_JSON)
-                                   .send(dtoUnmarshallerFactory.newUnmarshaller(AgentHealthStateDto.class))
-                                   .then(new Operation<AgentHealthStateDto>() {
+                                   .send(dtoUnmarshallerFactory.newUnmarshaller(WsAgentHealthStateDto.class))
+                                   .then(new Operation<WsAgentHealthStateDto>() {
                                        @Override
-                                       public void apply(AgentHealthStateDto arg) throws OperationException {
+                                       public void apply(WsAgentHealthStateDto arg) throws OperationException {
                                            if (RUNNING.equals(arg.getWorkspaceStatus())) {
                                                checkStateOfWsAgent(arg);
                                            }
@@ -238,11 +237,7 @@ public class WsAgentStateController implements ConnectionOpenedHandler, Connecti
         });
     }
 
-    private void checkStateOfWsAgent(AgentHealthStateDto agentHealthStateDto) {
-        if (!WSAGENT_REFERENCE.equals(agentHealthStateDto.getAgentId())) {
-            return;
-        }
-
+    private void checkStateOfWsAgent(WsAgentHealthStateDto agentHealthStateDto) {
         final AgentStateDto agentState = agentHealthStateDto.getAgentState();
         if (agentState == null) {
             return;
