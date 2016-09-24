@@ -31,7 +31,11 @@ public class AccountEntityListener {
     private EventService eventService;
 
     @PreRemove
-    private void preRemove(AccountImpl account) {
-        eventService.publish(new BeforeAccountRemovedEvent(account));
+    private void preRemove(AccountImpl account) throws Throwable {
+        final BeforeAccountRemovedEvent event = new BeforeAccountRemovedEvent(account);
+        eventService.publish(event);
+        if (event.isFailure()) {
+            throw event.cause();
+        }
     }
 }

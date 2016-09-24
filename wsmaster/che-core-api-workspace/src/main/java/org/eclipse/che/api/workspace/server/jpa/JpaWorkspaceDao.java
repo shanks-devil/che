@@ -17,10 +17,12 @@ import org.eclipse.che.api.core.ConflictException;
 import org.eclipse.che.api.core.NotFoundException;
 import org.eclipse.che.api.core.ServerException;
 import org.eclipse.che.api.core.jdbc.jpa.DuplicateKeyException;
+import org.eclipse.che.api.core.jdbc.jpa.event.CascadeRemoveEventSubscriber;
 import org.eclipse.che.api.core.notification.EventService;
 import org.eclipse.che.api.core.notification.EventSubscriber;
 import org.eclipse.che.api.machine.server.model.impl.SnapshotImpl;
 import org.eclipse.che.api.machine.server.spi.SnapshotDao;
+import org.eclipse.che.api.workspace.server.WorkspaceManager;
 import org.eclipse.che.api.workspace.server.event.BeforeWorkspaceRemovedEvent;
 import org.eclipse.che.api.workspace.server.model.impl.WorkspaceImpl;
 import org.eclipse.che.api.workspace.server.spi.WorkspaceDao;
@@ -174,15 +176,17 @@ public class JpaWorkspaceDao implements WorkspaceDao {
     }
 
     @Singleton
-    public static class RemoveWorkspaceBeforeAccountRemovedEventSubscriber implements EventSubscriber<BeforeAccountRemovedEvent> {
+    public static class RemoveWorkspaceBeforeAccountRemovedEventSubscriber
+            extends CascadeRemoveEventSubscriber<BeforeAccountRemovedEvent> {
+
         @Inject
-        private EventService eventService;
+        private EventService     eventService;
         @Inject
-        private WorkspaceDao workspaceDao;
+        private WorkspaceManager workspaceManager;
 
         @PostConstruct
         public void subscribe() {
-            eventService.subscribe(this);
+            eventService.subscribe(this, BeforeAccountRemovedEvent.class);
         }
 
         @PreDestroy
@@ -191,13 +195,9 @@ public class JpaWorkspaceDao implements WorkspaceDao {
         }
 
         @Override
-        public void onEvent(BeforeAccountRemovedEvent event) {
-            try {
-                for (WorkspaceImpl workspace : workspaceDao.getByNamespace(event.getAccount().getName())) {
-                    workspaceDao.remove(workspace.getId());
-                }
-            } catch (Exception x) {
-                LOG.error(format("Couldn't remove workspaces before account '%s' is removed", event.getAccount().getId()), x);
+        public void onCascadeEvent(BeforeAccountRemovedEvent event) throws Exception {
+            for (WorkspaceImpl workspace : workspaceManager.getByNamespace(event.getAccount().getName())) {
+                workspaceManager.removeWorkspace(workspace.getId());
             }
         }
     }
