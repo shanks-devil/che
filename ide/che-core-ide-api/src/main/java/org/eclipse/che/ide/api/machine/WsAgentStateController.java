@@ -108,7 +108,7 @@ public class WsAgentStateController implements ConnectionOpenedHandler, Connecti
     }
 
     private void checkWsAgentState() {
-        final String url = restContext + "/workspace/check/" + devMachine.getWorkspace();
+        final String url = restContext + "/workspace/" + devMachine.getWorkspace() + "/check";
         final Unmarshallable<WsAgentHealthStateDto> unmarshaller = dtoUnmarshallerFactory.newUnmarshaller(WsAgentHealthStateDto.class);
         final Promise<WsAgentHealthStateDto> wsAgentState = asyncRequestFactory.createGetRequest(url)
                                                                                .header(ACCEPT, APPLICATION_JSON)
@@ -192,7 +192,7 @@ public class WsAgentStateController implements ConnectionOpenedHandler, Connecti
     private void checkHttpConnection() {
         //here we add trailing slash because {@link org.eclipse.che.api.core.rest.ApiInfoService} mapped in this way
         String url = devMachine.getWsAgentBaseUrl() + '/';
-        final String pingUrl = restContext + "/workspace/check/" + devMachine.getWorkspace();
+        final String pingUrl = restContext + "/workspace/" + devMachine.getWorkspace() + "/check";
         asyncRequestFactory.createGetRequest(url).send(new StringUnmarshaller()).then(new Operation<String>() {
             @Override
             public void apply(String result) throws OperationException {

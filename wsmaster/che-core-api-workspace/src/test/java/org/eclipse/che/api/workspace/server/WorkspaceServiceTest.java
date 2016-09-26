@@ -850,7 +850,7 @@ public class WorkspaceServiceTest {
         final Response response = given().auth()
                                          .basic(ADMIN_USER_NAME, ADMIN_USER_PASSWORD)
                                          .when()
-                                         .get(SECURE_PATH + "/workspace/check/" + workspace.getId());
+                                         .get(SECURE_PATH + "/workspace/" + workspace.getId() + "/check");
 
         verify(wsAgentHealthChecker).check(machine);
         assertEquals(RUNNING, wsAgentState.getWorkspaceStatus());
@@ -866,7 +866,7 @@ public class WorkspaceServiceTest {
         final Response response = given().auth()
                                          .basic(ADMIN_USER_NAME, ADMIN_USER_PASSWORD)
                                          .when()
-                                         .get(SECURE_PATH + "/workspace/check/" + workspace.getId());
+                                         .get(SECURE_PATH + "/workspace/" + workspace.getId() + "/check");
 
         verify(wsAgentHealthChecker, never()).check(any());
         assertEquals(200, response.getStatusCode());
