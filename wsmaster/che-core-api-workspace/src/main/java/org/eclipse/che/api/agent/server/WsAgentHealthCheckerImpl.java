@@ -70,9 +70,9 @@ public class WsAgentHealthCheckerImpl implements WsAgentHealthChecker {
                                                                ConflictException {
         final Map<String, ? extends Server> servers = machine.getRuntime().getServers();
         Server wsAgent = null;
-        for (Server ser : servers.values()) {
-            if (WSAGENT_REFERENCE.equals(ser.getRef())) {
-                wsAgent = ser;
+        for (Server server : servers.values()) {
+            if (WSAGENT_REFERENCE.equals(server.getRef())) {
+                wsAgent = server;
             }
         }
         final WsAgentHealthStateDto agentHealthStateDto = newDto(WsAgentHealthStateDto.class);
