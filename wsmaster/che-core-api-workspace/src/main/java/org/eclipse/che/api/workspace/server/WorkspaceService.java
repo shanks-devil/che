@@ -37,12 +37,11 @@ import org.eclipse.che.api.machine.shared.dto.SnapshotDto;
 import org.eclipse.che.api.workspace.server.model.impl.EnvironmentImpl;
 import org.eclipse.che.api.workspace.server.model.impl.ProjectConfigImpl;
 import org.eclipse.che.api.workspace.server.model.impl.WorkspaceImpl;
-import org.eclipse.che.api.workspace.shared.dto.WsAgentHealthStateDto;
-import org.eclipse.che.api.workspace.shared.dto.AgentStateDto;
 import org.eclipse.che.api.workspace.shared.dto.EnvironmentDto;
 import org.eclipse.che.api.workspace.shared.dto.ProjectConfigDto;
 import org.eclipse.che.api.workspace.shared.dto.WorkspaceConfigDto;
 import org.eclipse.che.api.workspace.shared.dto.WorkspaceDto;
+import org.eclipse.che.api.workspace.shared.dto.WsAgentHealthStateDto;
 import org.eclipse.che.commons.env.EnvironmentContext;
 
 import javax.inject.Inject;
@@ -692,13 +691,10 @@ public class WorkspaceService extends Service {
 
         final MachineImpl devMachine = workspace.getRuntime().getDevMachine();
         if (devMachine == null) {
-            final AgentStateDto agentState = newDto(AgentStateDto.class)
-                    .withCode(NOT_FOUND.getStatusCode())
-                    .withReason("Workspace Agent isn't available if Dev machine isn't RUNNING");
-
             return newDto(WsAgentHealthStateDto.class)
                     .withWorkspaceStatus(workspace.getStatus())
-                    .withAgentState(agentState);
+                    .withCode(NOT_FOUND.getStatusCode())
+                    .withReason("Workspace Agent isn't available if Dev machine isn't RUNNING");
         }
 
         final WsAgentHealthStateDto check = agentHealthChecker.check(devMachine);

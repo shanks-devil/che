@@ -24,7 +24,6 @@ import org.eclipse.che.api.promises.client.OperationException;
 import org.eclipse.che.api.promises.client.Promise;
 import org.eclipse.che.api.promises.client.PromiseError;
 import org.eclipse.che.api.promises.client.callback.AsyncPromiseHelper;
-import org.eclipse.che.api.workspace.shared.dto.AgentStateDto;
 import org.eclipse.che.api.workspace.shared.dto.WsAgentHealthStateDto;
 import org.eclipse.che.ide.api.dialogs.DialogFactory;
 import org.eclipse.che.ide.api.machine.events.WsAgentStateEvent;
@@ -238,12 +237,7 @@ public class WsAgentStateController implements ConnectionOpenedHandler, Connecti
     }
 
     private void checkStateOfWsAgent(WsAgentHealthStateDto agentHealthStateDto) {
-        final AgentStateDto agentState = agentHealthStateDto.getAgentState();
-        if (agentState == null) {
-            return;
-        }
-
-        final int statusCode = agentState.getCode();
+        final int statusCode = agentHealthStateDto.getCode();
 
         String infoWindowTitle = "Workspace Agent";
 

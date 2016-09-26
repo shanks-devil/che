@@ -18,7 +18,6 @@ import org.eclipse.che.api.core.rest.HttpJsonRequest;
 import org.eclipse.che.api.core.rest.HttpJsonRequestFactory;
 import org.eclipse.che.api.core.rest.HttpJsonResponse;
 import org.eclipse.che.api.workspace.shared.dto.WsAgentHealthStateDto;
-import org.eclipse.che.api.workspace.shared.dto.AgentStateDto;
 import org.mockito.Mock;
 import org.mockito.testng.MockitoTestNGListener;
 import org.testng.annotations.BeforeMethod;
@@ -96,7 +95,7 @@ public class WsAgentHealthCheckerTest {
 
         WsAgentHealthStateDto result = checker.check(devMachine);
 
-        assertEquals(NOT_FOUND.getStatusCode(), result.getAgentState().getCode());
+        assertEquals(NOT_FOUND.getStatusCode(), result.getCode());
     }
 
     @Test(expectedExceptions = ServerException.class, expectedExceptionsMessageRegExp = "Workspace agent server not found in dev machine.")
@@ -109,15 +108,14 @@ public class WsAgentHealthCheckerTest {
     @Test
     public void pingRequestToWsAgentShouldBeSent() throws Exception {
         final WsAgentHealthStateDto result = checker.check(devMachine);
-        final AgentStateDto agentState = result.getAgentState();
 
         verify(httpJsonRequestFactory).fromUrl(WS_AGENT_SERVER_URL + '/');
         verify(httpJsonRequest).setMethod(javax.ws.rs.HttpMethod.GET);
         verify(httpJsonRequest).setTimeout(WS_AGENT_PING_CONNECTION_TIMEOUT_MS);
         verify(httpJsonRequest).request();
 
-        assertEquals(200, agentState.getCode());
-        assertEquals("response", agentState.getReason());
+        assertEquals(200, result.getCode());
+        assertEquals("response", result.getReason());
     }
 
     @Test
@@ -125,13 +123,12 @@ public class WsAgentHealthCheckerTest {
         doThrow(IOException.class).when(httpJsonRequest).request();
 
         final WsAgentHealthStateDto result = checker.check(devMachine);
-        final AgentStateDto agentState = result.getAgentState();
 
         verify(httpJsonRequestFactory).fromUrl(WS_AGENT_SERVER_URL + '/');
         verify(httpJsonRequest).setMethod(javax.ws.rs.HttpMethod.GET);
         verify(httpJsonRequest).setTimeout(WS_AGENT_PING_CONNECTION_TIMEOUT_MS);
         verify(httpJsonRequest).request();
 
-        assertEquals(SERVICE_UNAVAILABLE.getStatusCode(), agentState.getCode());
+        assertEquals(SERVICE_UNAVAILABLE.getStatusCode(), result.getCode());
     }
 }

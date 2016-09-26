@@ -34,10 +34,17 @@ public interface WsAgentHealthStateDto {
      */
     WorkspaceStatus getWorkspaceStatus();
 
-    void setAgentState(AgentStateDto agentState);
+    void setCode(int code);
 
-    WsAgentHealthStateDto withAgentState(AgentStateDto agentState);
+    /** Returns status code. */
+    int getCode();
 
-    /** Returns state of the agent */
-    AgentStateDto getAgentState();
+    WsAgentHealthStateDto withCode(int code);
+
+    void setReason(String reason);
+
+    /** Returns reason of the state. */
+    String getReason();
+
+    WsAgentHealthStateDto withReason(String reason);
 }

@@ -23,7 +23,6 @@ import org.eclipse.che.api.core.rest.HttpJsonRequestFactory;
 import org.eclipse.che.api.core.rest.HttpJsonResponse;
 import org.eclipse.che.api.machine.shared.Constants;
 import org.eclipse.che.api.workspace.shared.dto.WsAgentHealthStateDto;
-import org.eclipse.che.api.workspace.shared.dto.AgentStateDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,20 +76,17 @@ public class WsAgentHealthCheckerImpl implements WsAgentHealthChecker {
         }
         final WsAgentHealthStateDto agentHealthStateDto = newDto(WsAgentHealthStateDto.class);
         if (wsAgent == null) {
-            return agentHealthStateDto.withAgentState(newDto(AgentStateDto.class)
-                                                              .withCode(NOT_FOUND.getStatusCode())
-                                                              .withReason("Workspace Agent not available if Dev machine are not RUNNING"));
+            return agentHealthStateDto.withCode(NOT_FOUND.getStatusCode())
+                                      .withReason("Workspace Agent not available if Dev machine are not RUNNING");
         }
         try {
             final HttpJsonRequest pingRequest = createPingRequest(machine);
             final HttpJsonResponse response = pingRequest.request();
-            agentHealthStateDto.setAgentState(newDto(AgentStateDto.class)
-                                                      .withCode(response.getResponseCode())
-                                                      .withReason(response.asString()));
+            agentHealthStateDto.withCode(response.getResponseCode())
+                               .withReason(response.asString());
         } catch (IOException e) {
-            agentHealthStateDto.setAgentState(newDto(AgentStateDto.class)
-                                                      .withCode(SERVICE_UNAVAILABLE.getStatusCode())
-                                                      .withReason(e.getMessage()));
+            agentHealthStateDto.withCode(SERVICE_UNAVAILABLE.getStatusCode())
+                               .withReason(e.getMessage());
         }
         return agentHealthStateDto;
     }
