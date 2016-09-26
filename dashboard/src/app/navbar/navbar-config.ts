@@ -19,6 +19,8 @@ import {NavbarRecentWorkspaces} from './recent-workspaces/recent-workspaces.dire
 
 import {NavbarDropdownMenuController} from './navbar-dropdown-menu/navbar-dropdown-menu.controller';
 import {NavbarDropdownMenu} from './navbar-dropdown-menu/navbar-dropdown-menu.directive';
+import {NavbarNotificationController} from './notification/navbar-notification.controller';
+import {NavbarNotification} from './notification/navbar-notification.directive';
 
 export class NavbarConfig {
 
@@ -28,10 +30,13 @@ export class NavbarConfig {
     register.directive('cheNavBar', CheNavBar);
     register.directive('navBarSelected', NavBarSelected);
 
+    register.controller('NavbarDropdownMenuController', NavbarDropdownMenuController);
+    register.directive('navbarDropdownMenu', NavbarDropdownMenu);
+
     register.controller('NavbarRecentWorkspacesController', NavbarRecentWorkspacesController);
     register.directive('navbarRecentWorkspaces', NavbarRecentWorkspaces);
 
-    register.controller('NavbarDropdownMenuController', NavbarDropdownMenuController);
-    register.directive('navbarDropdownMenu', NavbarDropdownMenu);
+    register.controller('NavbarNotificationController', NavbarNotificationController);
+    register.directive('navbarNotification', NavbarNotification);
   }
 }
