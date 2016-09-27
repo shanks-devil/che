@@ -68,12 +68,7 @@ public class WsAgentHealthCheckerImpl implements WsAgentHealthChecker {
                                                                UnauthorizedException,
                                                                ConflictException {
         final Map<String, ? extends Server> servers = machine.getRuntime().getServers();
-        Server wsAgent = null;
-        for (Server server : servers.values()) {
-            if (WSAGENT_REFERENCE.equals(server.getRef())) {
-                wsAgent = server;
-            }
-        }
+        Server wsAgent = getWsAgent(servers);
         final WsAgentHealthStateDto agentHealthStateDto = newDto(WsAgentHealthStateDto.class);
         if (wsAgent == null) {
             return agentHealthStateDto.withCode(NOT_FOUND.getStatusCode())
@@ -89,6 +84,15 @@ public class WsAgentHealthCheckerImpl implements WsAgentHealthChecker {
                                .withReason(e.getMessage());
         }
         return agentHealthStateDto;
+    }
+
+    private Server getWsAgent(Map<String, ? extends Server> servers) {
+        for (Server server : servers.values()) {
+            if (WSAGENT_REFERENCE.equals(server.getRef())) {
+                return server;
+            }
+        }
+        return null;
     }
 
     // forms the ping request based on information about the machine.

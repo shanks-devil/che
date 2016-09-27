@@ -27,14 +27,13 @@ import org.eclipse.che.api.promises.client.callback.AsyncPromiseHelper;
 import org.eclipse.che.api.workspace.shared.dto.WsAgentHealthStateDto;
 import org.eclipse.che.ide.api.dialogs.DialogFactory;
 import org.eclipse.che.ide.api.machine.events.WsAgentStateEvent;
+import org.eclipse.che.ide.api.workspace.WorkspaceServiceClient;
 import org.eclipse.che.ide.rest.AsyncRequestFactory;
-import org.eclipse.che.ide.rest.DtoUnmarshallerFactory;
-import org.eclipse.che.ide.rest.RestContext;
 import org.eclipse.che.ide.rest.RestServiceInfo;
 import org.eclipse.che.ide.rest.StringUnmarshaller;
-import org.eclipse.che.ide.rest.Unmarshallable;
 import org.eclipse.che.ide.ui.loaders.LoaderPresenter;
 import org.eclipse.che.ide.util.loging.Log;
+import org.eclipse.che.ide.websocket.MachineMessageBus;
 import org.eclipse.che.ide.websocket.MessageBus;
 import org.eclipse.che.ide.websocket.MessageBusProvider;
 import org.eclipse.che.ide.websocket.events.ConnectionClosedHandler;
@@ -47,12 +46,15 @@ import java.util.List;
 
 import static com.google.common.collect.Lists.newArrayList;
 import static org.eclipse.che.api.core.model.workspace.WorkspaceStatus.RUNNING;
-import static org.eclipse.che.ide.MimeType.APPLICATION_JSON;
 import static org.eclipse.che.ide.api.machine.WsAgentState.STARTED;
 import static org.eclipse.che.ide.api.machine.WsAgentState.STOPPED;
-import static org.eclipse.che.ide.rest.HTTPHeader.ACCEPT;
 
 /**
+ * Controls workspace agent's state, defines actions to be perform on different events related to websocket
+ * connection (close, open, error, etc.), checks http/websocket connection to control it's state. Currently
+ * there are only two states that a workspace agent can be at: {@link WsAgentState#STARTED} or
+ * {@link WsAgentState#STOPPED}.
+ *
  * @author Roman Nikitenko
  * @author Valeriy Svydenko
  */
@@ -60,10 +62,9 @@ import static org.eclipse.che.ide.rest.HTTPHeader.ACCEPT;
 public class WsAgentStateController implements ConnectionOpenedHandler, ConnectionClosedHandler, ConnectionErrorHandler {
     private final EventBus               eventBus;
     private final MessageBusProvider     messageBusProvider;
-    private final DtoUnmarshallerFactory dtoUnmarshallerFactory;
     private final DialogFactory          dialogFactory;
-    private final String                 restContext;
     private final AsyncRequestFactory    asyncRequestFactory;
+    private final WorkspaceServiceClient workspaceServiceClient;
     private final LoaderPresenter        loader;
     //not used now added it for future if it we will have possibility check that service available for client call
     private final List<RestServiceInfo>  availableServices;
@@ -74,23 +75,27 @@ public class WsAgentStateController implements ConnectionOpenedHandler, Connecti
     private List<AsyncCallback<DevMachine>> devMachineCallbacks = newArrayList();
 
     @Inject
-    public WsAgentStateController(@RestContext String restContext,
+    public WsAgentStateController(WorkspaceServiceClient workspaceServiceClient,
                                   EventBus eventBus,
                                   LoaderPresenter loader,
                                   MessageBusProvider messageBusProvider,
                                   AsyncRequestFactory asyncRequestFactory,
-                                  DtoUnmarshallerFactory dtoUnmarshallerFactory,
                                   DialogFactory dialogFactory) {
-        this.restContext = restContext;
+        this.workspaceServiceClient = workspaceServiceClient;
         this.loader = loader;
         this.eventBus = eventBus;
         this.messageBusProvider = messageBusProvider;
         this.asyncRequestFactory = asyncRequestFactory;
-        this.dtoUnmarshallerFactory = dtoUnmarshallerFactory;
         this.dialogFactory = dialogFactory;
         this.availableServices = new ArrayList<>();
     }
 
+    /**
+     * Initialize state of the agent.
+     *
+     * @param devMachine
+     *         development machine instance
+     */
     public void initialize(DevMachine devMachine) {
         this.devMachine = devMachine;
         this.state = STOPPED;
@@ -100,35 +105,14 @@ public class WsAgentStateController implements ConnectionOpenedHandler, Connecti
 
     @Override
     public void onClose(WebSocketClosedEvent event) {
-        if (state.equals(STARTED)) {
-            checkWsAgentState();
+        if (STARTED.equals(state)) {
+            checkWsAgentHealth();
         }
-    }
-
-    private void checkWsAgentState() {
-        final String url = restContext + "/workspace/" + devMachine.getWorkspace() + "/check";
-        final Unmarshallable<WsAgentHealthStateDto> unmarshaller = dtoUnmarshallerFactory.newUnmarshaller(WsAgentHealthStateDto.class);
-        final Promise<WsAgentHealthStateDto> wsAgentState = asyncRequestFactory.createGetRequest(url)
-                                                                               .header(ACCEPT, APPLICATION_JSON)
-                                                                               .send(unmarshaller);
-        wsAgentState.then(new Operation<WsAgentHealthStateDto>() {
-            @Override
-            public void apply(WsAgentHealthStateDto arg) throws OperationException {
-                if (RUNNING.equals(arg.getWorkspaceStatus())) {
-                    checkStateOfWsAgent(arg);
-                }
-            }
-        }).catchError(new Operation<PromiseError>() {
-            @Override
-            public void apply(PromiseError arg) throws OperationException {
-                Log.error(getClass(), arg.getMessage());
-            }
-        });
     }
 
     @Override
     public void onError() {
-        if (state.equals(STARTED)) {
+        if (STARTED.equals(state)) {
             state = STOPPED;
             eventBus.fireEvent(WsAgentStateEvent.createWsAgentStoppedEvent());
         }
@@ -149,27 +133,12 @@ public class WsAgentStateController implements ConnectionOpenedHandler, Connecti
         }.scheduleRepeating(300);
     }
 
-    private void started() {
-        state = STARTED;
-        loader.setSuccess(LoaderPresenter.Phase.STARTING_WORKSPACE_AGENT);
-
-        for (AsyncCallback<MessageBus> callback : messageBusCallbacks) {
-            callback.onSuccess(messageBus);
-        }
-        messageBusCallbacks.clear();
-
-        for (AsyncCallback<DevMachine> callback : devMachineCallbacks) {
-            callback.onSuccess(devMachine);
-        }
-        devMachineCallbacks.clear();
-
-        eventBus.fireEvent(WsAgentStateEvent.createWsAgentStartedEvent());
-    }
-
+    /** Returns state of the ws agent */
     public WsAgentState getState() {
         return state;
     }
 
+    /** Returns instance of {@link MachineMessageBus}. */
     public Promise<MessageBus> getMessageBus() {
         return AsyncPromiseHelper.createFromAsyncRequest(new AsyncPromiseHelper.RequestCall<MessageBus>() {
             @Override
@@ -189,7 +158,6 @@ public class WsAgentStateController implements ConnectionOpenedHandler, Connecti
     private void checkHttpConnection() {
         //here we add trailing slash because {@link org.eclipse.che.api.core.rest.ApiInfoService} mapped in this way
         String url = devMachine.getWsAgentBaseUrl() + '/';
-        final String pingUrl = restContext + "/workspace/" + devMachine.getWorkspace() + "/check";
         asyncRequestFactory.createGetRequest(url).send(new StringUnmarshaller()).then(new Operation<String>() {
             @Override
             public void apply(String result) throws OperationException {
@@ -214,24 +182,26 @@ public class WsAgentStateController implements ConnectionOpenedHandler, Connecti
         }).catchError(new Operation<PromiseError>() {
             @Override
             public void apply(PromiseError arg) throws OperationException {
-                asyncRequestFactory.createGetRequest(pingUrl)
-                                   .header(ACCEPT, APPLICATION_JSON)
-                                   .send(dtoUnmarshallerFactory.newUnmarshaller(WsAgentHealthStateDto.class))
-                                   .then(new Operation<WsAgentHealthStateDto>() {
-                                       @Override
-                                       public void apply(WsAgentHealthStateDto arg) throws OperationException {
-                                           if (RUNNING.equals(arg.getWorkspaceStatus())) {
-                                               checkStateOfWsAgent(arg);
-                                           }
-                                       }
-                                   }).catchError(new Operation<PromiseError>() {
-                    @Override
-                    public void apply(PromiseError arg) throws OperationException {
-                        Log.error(getClass(), arg.getMessage());
-                    }
-                });
+                checkWsAgentHealth();
             }
         });
+    }
+
+    private void started() {
+        state = STARTED;
+        loader.setSuccess(LoaderPresenter.Phase.STARTING_WORKSPACE_AGENT);
+
+        for (AsyncCallback<MessageBus> callback : messageBusCallbacks) {
+            callback.onSuccess(messageBus);
+        }
+        messageBusCallbacks.clear();
+
+        for (AsyncCallback<DevMachine> callback : devMachineCallbacks) {
+            callback.onSuccess(devMachine);
+        }
+        devMachineCallbacks.clear();
+
+        eventBus.fireEvent(WsAgentStateEvent.createWsAgentStartedEvent());
     }
 
     private void checkStateOfWsAgent(WsAgentHealthStateDto agentHealthStateDto) {
@@ -263,6 +233,22 @@ public class WsAgentStateController implements ConnectionOpenedHandler, Connecti
         messageBus.addOnCloseHandler(this);
         messageBus.addOnErrorHandler(this);
         messageBus.addOnOpenHandler(this);
+    }
+
+    private void checkWsAgentHealth() {
+        workspaceServiceClient.getWsAgentState(devMachine.getWorkspace()).then(new Operation<WsAgentHealthStateDto>() {
+            @Override
+            public void apply(WsAgentHealthStateDto arg) throws OperationException {
+                if (RUNNING.equals(arg.getWorkspaceStatus())) {
+                    checkStateOfWsAgent(arg);
+                }
+            }
+        }).catchError(new Operation<PromiseError>() {
+            @Override
+            public void apply(PromiseError arg) throws OperationException {
+                Log.error(getClass(), arg.getMessage());
+            }
+        });
     }
 
 }

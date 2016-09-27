@@ -672,8 +672,9 @@ public class WorkspaceService extends Service {
     @Produces(APPLICATION_JSON)
     @ApiOperation(value = "Get state of the workspace agent by the workspace id and agent id")
     @ApiResponses({@ApiResponse(code = 200, message = "The response contains requested workspace entity"),
-                   @ApiResponse(code = 404, message = "The workspace with specified id does not exist"),
+                   @ApiResponse(code = 400, message = "Missed required parameters, parameters are not valid"),
                    @ApiResponse(code = 403, message = "The user is not workspace owner"),
+                   @ApiResponse(code = 404, message = "The workspace with specified id does not exist"),
                    @ApiResponse(code = 500, message = "Internal server error occurred")})
     public WsAgentHealthStateDto checkAgentHealth(@ApiParam(value = "Workspace id")
                                                   @PathParam("id") String key) throws NotFoundException,
@@ -683,7 +684,6 @@ public class WorkspaceService extends Service {
                                                                                              UnauthorizedException,
                                                                                              IOException,
                                                                                              ConflictException {
-        validateKey(key);
         final WorkspaceImpl workspace = workspaceManager.getWorkspace(key);
         if (WorkspaceStatus.RUNNING != workspace.getStatus()) {
             return newDto(WsAgentHealthStateDto.class).withWorkspaceStatus(workspace.getStatus());
@@ -698,9 +698,7 @@ public class WorkspaceService extends Service {
         }
 
         final WsAgentHealthStateDto check = agentHealthChecker.check(devMachine);
-
         check.setWorkspaceStatus(workspace.getStatus());
-
         return check;
     }
 

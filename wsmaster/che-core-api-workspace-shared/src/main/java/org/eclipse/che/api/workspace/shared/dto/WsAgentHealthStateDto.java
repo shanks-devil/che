@@ -36,7 +36,7 @@ public interface WsAgentHealthStateDto {
 
     void setCode(int code);
 
-    /** Returns status code. */
+    /** Returns HTTP status code. */
     int getCode();
 
     WsAgentHealthStateDto withCode(int code);
