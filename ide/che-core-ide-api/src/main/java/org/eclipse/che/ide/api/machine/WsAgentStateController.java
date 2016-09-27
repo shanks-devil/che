@@ -100,7 +100,6 @@ public class WsAgentStateController implements ConnectionOpenedHandler, Connecti
 
     @Override
     public void onClose(WebSocketClosedEvent event) {
-        Log.info(getClass(), "Test WS connection closed with code " + event.getCode() + " reason: " + event.getReason());
         if (state.equals(STARTED)) {
             checkWsAgentState();
         }
@@ -129,7 +128,6 @@ public class WsAgentStateController implements ConnectionOpenedHandler, Connecti
 
     @Override
     public void onError() {
-        Log.info(getClass(), "Test WS connection error");
         if (state.equals(STARTED)) {
             state = STOPPED;
             eventBus.fireEvent(WsAgentStateEvent.createWsAgentStoppedEvent());

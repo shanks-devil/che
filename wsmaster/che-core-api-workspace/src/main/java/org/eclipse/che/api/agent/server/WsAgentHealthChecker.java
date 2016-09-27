@@ -21,6 +21,19 @@ import org.eclipse.che.api.workspace.shared.dto.WsAgentHealthStateDto;
 
 /**
  * Describes a mechanism for checking ws agent's state.
+ * It needs when Workspace Agent (WS Agent) stops to respond and projects disappear from the project tree,
+ * and the page shows 'Cannot get project types' error.
+ * It may happens for example, when OOM happens in a WS Agent and kernel kills WS Agent process.
+ * Problem here that we can't detect properly OOM error but we can check if WS Agent is alive for user.
+ * <p>
+ * If client (IDE) lost WebSocket connection to the WS Agent - in this case IDE will request some other service in our infrastructure to
+ * check WS Agent state, here we have two ways:
+ * <p>
+ * 1/ WS Agent was shutdown by OS. If it not available for this service too, a user should be notified that the workspace is broken
+ * probably because of OOM (it will be just suggest because we not sure about reason).
+ * <p>
+ * 2/ WS Agent is working well and is accessible for our infrastructure, in this case user has networking problem. It can be not
+ * well configured proxy server or other problems which are not related to our responsibility.
  *
  * @author Vitalii Parfonov
  */
@@ -28,13 +41,10 @@ public interface WsAgentHealthChecker {
 
     /**
      * Verifies if ws agent is alive.
-     * The request to ws agent will be sent periodically,
-     * the request period is defined by a property named 'machine.ws_agent.ping_conn_timeout_ms'.
      *
      * @param machine
      *         machine instance
-     * @return state of the ws agent, if the state of ws agent is 200 it means that agent is working well otherwise agent is down -
-     * it may happen when OOM.
+     * @return state of the ws agent
      * @throws NotFoundException
      *         if the agent with specified id does not exist
      * @throws ServerException

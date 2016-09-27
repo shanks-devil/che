@@ -13,14 +13,11 @@ package org.eclipse.che.ide.client;
 import com.google.gwt.core.client.Callback;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import com.google.web.bindery.event.shared.EventBus;
 
 import org.eclipse.che.ide.api.action.ActionManager;
 import org.eclipse.che.ide.api.app.AppContext;
 import org.eclipse.che.ide.api.app.StartUpAction;
 import org.eclipse.che.ide.api.component.WsAgentComponent;
-import org.eclipse.che.ide.api.machine.events.WsAgentStateEvent;
-import org.eclipse.che.ide.api.machine.events.WsAgentStateHandler;
 
 import java.util.List;
 
@@ -33,36 +30,23 @@ import java.util.List;
 @Singleton
 public class StartUpActionsProcessor implements WsAgentComponent {
 
-    private final EventBus      eventBus;
     private final AppContext    appContext;
     private final ActionManager actionManager;
 
     @Inject
-    public StartUpActionsProcessor(EventBus eventBus,
-                                   AppContext appContext,
-                                   ActionManager actionManager) {
-        this.eventBus = eventBus;
+    public StartUpActionsProcessor(AppContext appContext, ActionManager actionManager) {
         this.appContext = appContext;
         this.actionManager = actionManager;
     }
 
     @Override
-    public void start(final Callback<WsAgentComponent, Exception> callback) {
-        eventBus.addHandler(WsAgentStateEvent.TYPE, new WsAgentStateHandler() {
-            @Override
-            public void onWsAgentStarted(WsAgentStateEvent event) {
-                final List<StartUpAction> startAppActions = appContext.getStartAppActions();
-                if (startAppActions != null && !startAppActions.isEmpty()) {
-                    for (StartUpAction action : startAppActions) {
-                        actionManager.performAction(action.getActionId(), action.getParameters());
-                    }
-                }
-                callback.onSuccess(StartUpActionsProcessor.this);
+    public void start(Callback<WsAgentComponent, Exception> callback) {
+        final List<StartUpAction> startAppActions = appContext.getStartAppActions();
+        if (startAppActions != null && !startAppActions.isEmpty()) {
+            for (StartUpAction action : startAppActions) {
+                actionManager.performAction(action.getActionId(), action.getParameters());
             }
-
-            @Override
-            public void onWsAgentStopped(WsAgentStateEvent event) {
-            }
-        });
+        }
+        callback.onSuccess(this);
     }
 }
