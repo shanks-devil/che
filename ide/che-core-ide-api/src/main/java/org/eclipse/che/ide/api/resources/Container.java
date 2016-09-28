@@ -147,6 +147,10 @@ public interface Container extends Resource {
      */
     Promise<Resource[]> getChildren();
 
+    Promise<Project> getProject (Path path, Optional<Resource> resource);
+
+    Promise<Optional<Resource>> findResource(final Path absolutePath, boolean quiet);
+
     /**
      * Returns the {@code Promise} with array of existing member resources (projects, folders and files) in this resource,
      * in particular order. Order is organized by alphabetic resource name ignoring case.

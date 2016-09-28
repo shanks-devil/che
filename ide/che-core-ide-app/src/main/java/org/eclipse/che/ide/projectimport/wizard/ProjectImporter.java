@@ -34,6 +34,7 @@ import org.eclipse.che.ide.api.oauth.SubversionAuthenticator;
 import org.eclipse.che.ide.api.project.MutableProjectConfig;
 import org.eclipse.che.ide.api.project.wizard.ImportProjectNotificationSubscriberFactory;
 import org.eclipse.che.ide.api.project.wizard.ProjectNotificationSubscriber;
+import org.eclipse.che.ide.api.resources.Container;
 import org.eclipse.che.ide.api.resources.Project;
 import org.eclipse.che.ide.api.resources.Resource;
 import org.eclipse.che.ide.api.wizard.Wizard.CompleteCallback;
@@ -160,8 +161,21 @@ public class ProjectImporter extends AbstractImporter {
 
                                                              @Override
                                                              public void onSuccess(Void result) {
-                                                                 Project[] rootProject = appContext.getProjects();
-                                                                 callback.onSuccess(null);
+                                                                 final Container workspaceRoot = appContext.getWorkspaceRoot();
+                                                                 workspaceRoot.findResource(path, true).then(new Operation<Optional<Resource>>() {
+                                                                     @Override
+                                                                     public void apply(Optional<Resource> resourceOptional) throws OperationException {
+                                                                         workspaceRoot.getProject(path, resourceOptional).thenPromise(new Function<Project, Promise<Project>>() {
+                                                                             @Override
+                                                                             public Promise<Project> apply(Project project) throws FunctionException {
+                                                                                 callback.onSuccess(project);
+                                                                                 subscriber.onSuccess();
+
+                                                                                 return projectResolver.resolve(project);
+                                                                             }
+                                                                         });
+                                                                     }
+                                                                 });
                                                              }
                                                          });
                                              }
@@ -181,20 +195,6 @@ public class ProjectImporter extends AbstractImporter {
                                  }
                              }
                          });
-    }
-
-    private void svnImport(final Path path, final AsyncCallback<Project> callback) {
-//        resourceManager.findResource(path, true).then(new Operation<Optional<Resource>>() {
-//            @Override
-//            public void apply(Optional<Resource> resourceOptional) throws OperationException {
-//                resourceManager.getProject(path, resourceOptional).then(new Operation<Project>() {
-//                    @Override
-//                    public void apply(Project project) throws OperationException {
-//                        callback.onSuccess(project);
-//                    }
-//                });
-//            }
-//        });
     }
 
     private Promise<Project> authUserAndRecallImport(final String providerName,

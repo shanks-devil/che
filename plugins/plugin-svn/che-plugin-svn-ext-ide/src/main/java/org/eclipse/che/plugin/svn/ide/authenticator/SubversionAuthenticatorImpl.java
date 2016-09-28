@@ -67,7 +67,7 @@ public class SubversionAuthenticatorImpl implements SubversionAuthenticator, Sub
 
     @Override
     public void onCancelClicked() {
-        //callback.onFailure(new Exception("Authorization request rejected by user."));
+        callback.onFailure(new Exception("Authorization request rejected by user."));
         view.closeDialog();
     }
 
