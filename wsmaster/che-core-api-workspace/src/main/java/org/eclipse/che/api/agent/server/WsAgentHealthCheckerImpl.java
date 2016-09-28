@@ -58,12 +58,7 @@ public class WsAgentHealthCheckerImpl implements WsAgentHealthChecker {
     }
 
     @Override
-    public WsAgentHealthStateDto check(Machine machine) throws NotFoundException,
-                                                               ServerException,
-                                                               ForbiddenException,
-                                                               BadRequestException,
-                                                               UnauthorizedException,
-                                                               ConflictException {
+    public WsAgentHealthStateDto check(Machine machine) throws NotFoundException, ServerException {
         final Map<String, ? extends Server> servers = machine.getRuntime().getServers();
         Server wsAgent = getWsAgent(servers);
         final WsAgentHealthStateDto agentHealthStateDto = newDto(WsAgentHealthStateDto.class);
@@ -78,6 +73,8 @@ public class WsAgentHealthCheckerImpl implements WsAgentHealthChecker {
         } catch (IOException e) {
             agentHealthStateDto.withCode(SERVICE_UNAVAILABLE.getStatusCode())
                                .withReason(e.getMessage());
+        } catch (ForbiddenException | BadRequestException | ConflictException | UnauthorizedException e) {
+            throw new ServerException(e);
         }
         return agentHealthStateDto;
     }

@@ -10,12 +10,8 @@
  *******************************************************************************/
 package org.eclipse.che.api.agent.server;
 
-import org.eclipse.che.api.core.BadRequestException;
-import org.eclipse.che.api.core.ConflictException;
-import org.eclipse.che.api.core.ForbiddenException;
 import org.eclipse.che.api.core.NotFoundException;
 import org.eclipse.che.api.core.ServerException;
-import org.eclipse.che.api.core.UnauthorizedException;
 import org.eclipse.che.api.core.model.machine.Machine;
 import org.eclipse.che.api.workspace.shared.dto.WsAgentHealthStateDto;
 
@@ -49,19 +45,6 @@ public interface WsAgentHealthChecker {
      *         if the agent with specified id does not exist
      * @throws ServerException
      *         if internal server error occurred
-     * @throws ForbiddenException
-     *         if the user is not workspace owner
-     * @throws BadRequestException
-     *         if has invalid parameters
-     * @throws UnauthorizedException
-     *         if the user is not authorized
-     * @throws ConflictException
-     *         if has a conflict with the current state of the target resource
      */
-    WsAgentHealthStateDto check(Machine machine) throws NotFoundException,
-                                                        ServerException,
-                                                        ForbiddenException,
-                                                        BadRequestException,
-                                                        UnauthorizedException,
-                                                        ConflictException;
+    WsAgentHealthStateDto check(Machine machine) throws NotFoundException, ServerException;
 }
