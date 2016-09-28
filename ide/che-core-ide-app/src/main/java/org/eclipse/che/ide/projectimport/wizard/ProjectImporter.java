@@ -10,6 +10,7 @@
  *******************************************************************************/
 package org.eclipse.che.ide.projectimport.wizard;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Strings;
 import com.google.gwt.user.client.rpc.AsyncCallback;
 import com.google.inject.Inject;
@@ -29,12 +30,15 @@ import org.eclipse.che.ide.api.importer.AbstractImporter;
 import org.eclipse.che.ide.api.oauth.OAuth2Authenticator;
 import org.eclipse.che.ide.api.oauth.OAuth2AuthenticatorRegistry;
 import org.eclipse.che.ide.api.oauth.OAuth2AuthenticatorUrlProvider;
+import org.eclipse.che.ide.api.oauth.SubversionAuthenticator;
 import org.eclipse.che.ide.api.project.MutableProjectConfig;
 import org.eclipse.che.ide.api.project.wizard.ImportProjectNotificationSubscriberFactory;
 import org.eclipse.che.ide.api.project.wizard.ProjectNotificationSubscriber;
 import org.eclipse.che.ide.api.resources.Project;
+import org.eclipse.che.ide.api.resources.Resource;
 import org.eclipse.che.ide.api.wizard.Wizard.CompleteCallback;
 import org.eclipse.che.ide.resource.Path;
+import org.eclipse.che.ide.resources.impl.ResourceManager;
 import org.eclipse.che.ide.rest.RestContext;
 import org.eclipse.che.ide.util.ExceptionUtils;
 import org.eclipse.che.security.oauth.OAuthStatus;
@@ -45,6 +49,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static org.eclipse.che.api.core.ErrorCodes.UNABLE_GET_PRIVATE_SSH_KEY;
 import static org.eclipse.che.api.core.ErrorCodes.UNAUTHORIZED_GIT_OPERATION;
+import static org.eclipse.che.api.core.ErrorCodes.UNAUTHORIZED_SVN_OPERATION;
 import static org.eclipse.che.api.git.shared.ProviderInfo.AUTHENTICATE_URL;
 import static org.eclipse.che.api.git.shared.ProviderInfo.PROVIDER_NAME;
 import static org.eclipse.che.api.promises.client.callback.AsyncPromiseHelper.createFromAsyncRequest;
@@ -60,6 +65,7 @@ public class ProjectImporter extends AbstractImporter {
     private final CoreLocalizationConstant    localizationConstant;
     private final ProjectResolver             projectResolver;
     private final String                      restContext;
+    private final SubversionAuthenticator     svnAuthenticator;
     private final OAuth2AuthenticatorRegistry oAuth2AuthenticatorRegistry;
 
 
@@ -69,11 +75,13 @@ public class ProjectImporter extends AbstractImporter {
                            AppContext appContext,
                            ProjectResolver projectResolver,
                            @RestContext String restContext,
+                           SubversionAuthenticator svnAuthenticator,
                            OAuth2AuthenticatorRegistry oAuth2AuthenticatorRegistry) {
         super(appContext, subscriberFactory);
         this.localizationConstant = localizationConstant;
         this.projectResolver = projectResolver;
         this.restContext = restContext;
+        this.svnAuthenticator = svnAuthenticator;
         this.oAuth2AuthenticatorRegistry = oAuth2AuthenticatorRegistry;
     }
 
@@ -112,7 +120,7 @@ public class ProjectImporter extends AbstractImporter {
         final ProjectNotificationSubscriber subscriber = subscriberFactory.createSubscriber();
         subscriber.subscribe(path.lastSegment());
 
-        MutableProjectConfig importConfig = new MutableProjectConfig();
+        final MutableProjectConfig importConfig = new MutableProjectConfig();
         importConfig.setPath(path.toString());
         importConfig.setSource(sourceStorage);
 
@@ -131,15 +139,34 @@ public class ProjectImporter extends AbstractImporter {
                          .catchErrorPromise(new Function<PromiseError, Promise<Project>>() {
                              @Override
                              public Promise<Project> apply(PromiseError exception) throws FunctionException {
+                                 final Map<String, String> attributes = ExceptionUtils.getAttributes(exception.getCause());
+                                 final String providerName = attributes.get(PROVIDER_NAME);
                                  subscriber.onFailure(exception.getCause().getMessage());
 
+                                 final String authenticateUrl = attributes.get(AUTHENTICATE_URL);
                                  switch (getErrorCode(exception.getCause())) {
                                      case UNABLE_GET_PRIVATE_SSH_KEY:
                                          throw new IllegalStateException(localizationConstant.importProjectMessageUnableGetSshKey());
+                                     case UNAUTHORIZED_SVN_OPERATION:
+                                         return createFromAsyncRequest(new RequestCall<Project>() {
+                                             @Override
+                                             public void makeCall(final AsyncCallback<Project> callback) {
+                                                 svnAuthenticator.authenticate(attributes.get("projectPath"),
+                                                                               authenticateUrl, path, new AsyncCallback<Void>() {
+                                                             @Override
+                                                             public void onFailure(Throwable caught) {
+                                                                 callback.onFailure(new Exception(caught.getMessage()));
+                                                             }
+
+                                                             @Override
+                                                             public void onSuccess(Void result) {
+                                                                 Project[] rootProject = appContext.getProjects();
+                                                                 callback.onSuccess(null);
+                                                             }
+                                                         });
+                                             }
+                                         });
                                      case UNAUTHORIZED_GIT_OPERATION:
-                                         final Map<String, String> attributes = ExceptionUtils.getAttributes(exception.getCause());
-                                         final String providerName = attributes.get(PROVIDER_NAME);
-                                         final String authenticateUrl = attributes.get(AUTHENTICATE_URL);
                                          if (!Strings.isNullOrEmpty(providerName) && !Strings.isNullOrEmpty(authenticateUrl)) {
                                              return authUserAndRecallImport(providerName,
                                                                             authenticateUrl,
@@ -154,6 +181,20 @@ public class ProjectImporter extends AbstractImporter {
                                  }
                              }
                          });
+    }
+
+    private void svnImport(final Path path, final AsyncCallback<Project> callback) {
+//        resourceManager.findResource(path, true).then(new Operation<Optional<Resource>>() {
+//            @Override
+//            public void apply(Optional<Resource> resourceOptional) throws OperationException {
+//                resourceManager.getProject(path, resourceOptional).then(new Operation<Project>() {
+//                    @Override
+//                    public void apply(Project project) throws OperationException {
+//                        callback.onSuccess(project);
+//                    }
+//                });
+//            }
+//        });
     }
 
     private Promise<Project> authUserAndRecallImport(final String providerName,

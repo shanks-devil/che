@@ -351,7 +351,9 @@ public final class ProjectManager {
             try {
                 importer.importSources(folder, sourceStorage, outputOutputConsumerFactory);
             } catch (final Exception e) {
-                folder.remove();
+                if (!(e instanceof UnauthorizedException)) {
+                    folder.remove();
+                }
                 throw e;
             }
 

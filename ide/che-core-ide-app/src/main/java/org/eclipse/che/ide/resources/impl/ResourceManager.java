@@ -476,29 +476,33 @@ public final class ResourceManager {
                 return ps.importProject(path, sourceStorageDto).thenPromise(new Function<Void, Promise<Project>>() {
                     @Override
                     public Promise<Project> apply(Void ignored) throws FunctionException {
-
-                        return ps.getProject(path).then(new Function<ProjectConfigDto, Project>() {
-                            @Override
-                            public Project apply(ProjectConfigDto config) throws FunctionException {
-                                cachedConfigs = add(cachedConfigs, config);
-
-                                Resource project = resourceFactory.newProjectImpl(config, ResourceManager.this);
-
-                                checkState(project != null, "Failed to locate imported project's configuration");
-
-                                store.register(project);
-
-                                eventBus.fireEvent(new ResourceChangedEvent(
-                                        new ResourceDeltaImpl(project, (resource.isPresent() ? UPDATED : ADDED) | DERIVED)));
-
-                                return (Project)project;
-                            }
-                        });
+                        return getProject(path, resource);
                     }
                 });
             }
         });
     }
+
+    public Promise<Project> getProject (Path path, final Optional<Resource> resource) {
+        return ps.getProject(path).then(new Function<ProjectConfigDto, Project>() {
+            @Override
+            public Project apply(ProjectConfigDto config) throws FunctionException {
+                cachedConfigs = add(cachedConfigs, config);
+
+                Resource project = resourceFactory.newProjectImpl(config, ResourceManager.this);
+
+                checkState(project != null, "Failed to locate imported project's configuration");
+
+                store.register(project);
+
+                eventBus.fireEvent(new ResourceChangedEvent(
+                        new ResourceDeltaImpl(project, (resource.isPresent() ? UPDATED : ADDED) | DERIVED)));
+
+                return (Project)project;
+            }
+        });
+    }
+
 
     protected Promise<Resource> move(final Resource source, final Path destination, final boolean force) {
         checkArgument(!source.getLocation().isRoot(), "Workspace root is not allowed to be moved");
@@ -801,7 +805,7 @@ public final class ResourceManager {
         }
     }
 
-    private Promise<Optional<Resource>> findResource(final Path absolutePath, boolean quiet) {
+    public Promise<Optional<Resource>> findResource(final Path absolutePath, boolean quiet) {
 
         //search resource in local cache
         final Optional<Resource> optionalCachedResource = store.getResource(absolutePath);

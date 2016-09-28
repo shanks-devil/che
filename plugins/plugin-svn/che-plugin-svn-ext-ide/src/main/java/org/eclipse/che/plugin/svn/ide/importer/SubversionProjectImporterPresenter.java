@@ -74,9 +74,6 @@ public class SubversionProjectImporterPresenter extends AbstractWizardPage<Mutab
         view.setProjectDescription(dataObject.getDescription());
         view.setProjectUrl(dataObject.getSource().getLocation());
 
-        view.cleanCredentials();
-        onCredentialsChanged();
-
         container.setWidget(view);
 
         view.setInputsEnableState(true);
@@ -139,13 +136,6 @@ public class SubversionProjectImporterPresenter extends AbstractWizardPage<Mutab
     @Override
     public void onProjectDescriptionChanged(final String projectDescription) {
         dataObject.setDescription(projectDescription);
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    public void onCredentialsChanged() {
-        dataObject.getSource().getParameters().put(ImportParameterKeys.PARAMETER_USERNAME, view.getUserName());
-        dataObject.getSource().getParameters().put(ImportParameterKeys.PARAMETER_PASSWORD, view.getPassword());
     }
 
     private boolean isSubversionUrlCorrect(final String url) {

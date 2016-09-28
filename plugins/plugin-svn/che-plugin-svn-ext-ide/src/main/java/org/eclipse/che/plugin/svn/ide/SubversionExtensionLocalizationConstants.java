@@ -581,6 +581,22 @@ public interface SubversionExtensionLocalizationConstants extends Messages {
     @Key("move.item.child.detect")
     String moveItemChildDetected();
 
+    /* Authenticator dialog */
+    @Key("authenticator.title")
+    String authenticatorTitle();
+
+    @Key("authenticator.username")
+    String authenticatorUserName();
+
+    @Key("authenticator.password")
+    String authenticatorPassword();
+
+    @Key("authenticator.login.button")
+    String authenticatorLoginButton();
+
+    @Key("authenticator.cancel.button")
+    String authenticatorCancelButton();
+
     /** Property */
     @Key("property.modify.start")
     String propertyModifyStart();

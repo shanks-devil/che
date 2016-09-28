@@ -25,6 +25,7 @@ import org.eclipse.che.plugin.svn.shared.AddRequest;
 import org.eclipse.che.plugin.svn.shared.CLIOutputResponse;
 import org.eclipse.che.plugin.svn.shared.CLIOutputResponseList;
 import org.eclipse.che.plugin.svn.shared.CLIOutputWithRevisionResponse;
+import org.eclipse.che.plugin.svn.shared.CheckoutRequest;
 import org.eclipse.che.plugin.svn.shared.CleanupRequest;
 import org.eclipse.che.plugin.svn.shared.CommitRequest;
 import org.eclipse.che.plugin.svn.shared.CopyRequest;
@@ -210,6 +211,23 @@ public class SubversionClientServiceImpl implements SubversionClientService {
                           .withAccept(accept);
 
         return asyncRequestFactory.createPostRequest(getBaseUrl() + "/update", request)
+                                  .loader(loader)
+                                  .send(dtoUnmarshallerFactory.newUnmarshaller(CLIOutputWithRevisionResponse.class));
+    }
+
+    @Override
+    public Promise<CLIOutputWithRevisionResponse> checkout(String projectPath, String url, String login, String password, String revision, String depth,
+                                                           boolean ignoreExternals) {
+        final CheckoutRequest request = dtoFactory.createDto(CheckoutRequest.class)
+                                                  .withUrl(url)
+                                                  .withProjectPath(projectPath)
+                                                  .withLogin(login)
+                                                  .withPassword(password)
+                                                  .withRevision(revision)
+                                                  .withDepth(depth)
+                                                  .withIgnoreExternals(ignoreExternals);
+
+        return asyncRequestFactory.createPostRequest(getBaseUrl() + "/checkout", request)
                                   .loader(loader)
                                   .send(dtoUnmarshallerFactory.newUnmarshaller(CLIOutputWithRevisionResponse.class));
     }

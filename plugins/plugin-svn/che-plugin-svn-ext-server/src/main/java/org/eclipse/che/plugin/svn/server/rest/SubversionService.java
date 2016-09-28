@@ -26,6 +26,7 @@ import org.eclipse.che.plugin.svn.shared.AddRequest;
 import org.eclipse.che.plugin.svn.shared.CLIOutputResponse;
 import org.eclipse.che.plugin.svn.shared.CLIOutputResponseList;
 import org.eclipse.che.plugin.svn.shared.CLIOutputWithRevisionResponse;
+import org.eclipse.che.plugin.svn.shared.CheckoutRequest;
 import org.eclipse.che.plugin.svn.shared.CleanupRequest;
 import org.eclipse.che.plugin.svn.shared.CommitRequest;
 import org.eclipse.che.plugin.svn.shared.CopyRequest;
@@ -234,6 +235,25 @@ public class SubversionService extends Service {
     public CLIOutputWithRevisionResponse update(final UpdateRequest request) throws ApiException, IOException {
         request.setProjectPath(getAbsoluteProjectPath(request.getProjectPath()));
         return this.subversionApi.update(request);
+    }
+
+    /**
+     * Update the working copy.
+     *
+     * @param request
+     *         the update request
+     * @return the update response
+     * @throws IOException
+     *         if there is a problem executing the command
+     * @throws SubversionException
+     *         if there is a Subversion issue
+     */
+    @Path("checkout")
+    @POST
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces({MediaType.APPLICATION_JSON, MediaType.TEXT_PLAIN})
+    public CLIOutputWithRevisionResponse checkout(final CheckoutRequest request) throws ApiException, IOException {
+        return this.subversionApi.checkout(request);
     }
 
     /**
