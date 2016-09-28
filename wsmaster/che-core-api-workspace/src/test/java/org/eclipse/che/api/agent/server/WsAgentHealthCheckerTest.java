@@ -10,7 +10,6 @@
  *******************************************************************************/
 package org.eclipse.che.api.agent.server;
 
-import org.eclipse.che.api.core.ServerException;
 import org.eclipse.che.api.core.model.machine.Machine;
 import org.eclipse.che.api.core.model.machine.MachineRuntimeInfo;
 import org.eclipse.che.api.core.model.machine.Server;
@@ -98,11 +97,13 @@ public class WsAgentHealthCheckerTest {
         assertEquals(NOT_FOUND.getStatusCode(), result.getCode());
     }
 
-    @Test(expectedExceptions = ServerException.class, expectedExceptionsMessageRegExp = "Workspace agent server not found in dev machine.")
-    public void shouldThrowExceptionOnCreatingPingRequestIfWsAgentIsNull() throws Exception {
-        servers.remove(WS_AGENT_PORT);
+    @Test
+    public void returnStateWithNotFoundCode() throws Exception {
+        doReturn(emptyMap()).when(machineRuntimeInfo).getServers();
 
-        checker.check(devMachine);
+        final WsAgentHealthStateDto check = checker.check(devMachine);
+        assertEquals(NOT_FOUND.getStatusCode(), check.getCode());
+        assertEquals("Workspace Agent not available", check.getReason());
     }
 
     @Test
@@ -115,7 +116,6 @@ public class WsAgentHealthCheckerTest {
         verify(httpJsonRequest).request();
 
         assertEquals(200, result.getCode());
-        assertEquals("response", result.getReason());
     }
 
     @Test
