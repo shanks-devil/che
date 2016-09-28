@@ -58,7 +58,6 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -678,12 +677,11 @@ public class WorkspaceService extends Service {
                    @ApiResponse(code = 500, message = "Internal server error occurred")})
     public WsAgentHealthStateDto checkAgentHealth(@ApiParam(value = "Workspace id")
                                                   @PathParam("id") String key) throws NotFoundException,
-                                                                                             ServerException,
-                                                                                             ForbiddenException,
-                                                                                             BadRequestException,
-                                                                                             UnauthorizedException,
-                                                                                             IOException,
-                                                                                             ConflictException {
+                                                                                      ServerException,
+                                                                                      ForbiddenException,
+                                                                                      BadRequestException,
+                                                                                      UnauthorizedException,
+                                                                                      ConflictException {
         final WorkspaceImpl workspace = workspaceManager.getWorkspace(key);
         if (WorkspaceStatus.RUNNING != workspace.getStatus()) {
             return newDto(WsAgentHealthStateDto.class).withWorkspaceStatus(workspace.getStatus());

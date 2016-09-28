@@ -21,7 +21,6 @@ import org.eclipse.che.api.core.model.machine.Server;
 import org.eclipse.che.api.core.rest.HttpJsonRequest;
 import org.eclipse.che.api.core.rest.HttpJsonRequestFactory;
 import org.eclipse.che.api.core.rest.HttpJsonResponse;
-import org.eclipse.che.api.machine.shared.Constants;
 import org.eclipse.che.api.workspace.shared.dto.WsAgentHealthStateDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,8 +45,6 @@ import static org.eclipse.che.dto.server.DtoFactory.newDto;
  */
 @Singleton
 public class WsAgentHealthCheckerImpl implements WsAgentHealthChecker {
-    private static final String WS_AGENT_SERVER_NOT_FOUND_ERROR = "Workspace agent server not found in dev machine.";
-
     protected static final Logger LOG = LoggerFactory.getLogger(WsAgentHealthCheckerImpl.class);
 
     private final HttpJsonRequestFactory httpJsonRequestFactory;
@@ -72,13 +69,12 @@ public class WsAgentHealthCheckerImpl implements WsAgentHealthChecker {
         final WsAgentHealthStateDto agentHealthStateDto = newDto(WsAgentHealthStateDto.class);
         if (wsAgent == null) {
             return agentHealthStateDto.withCode(NOT_FOUND.getStatusCode())
-                                      .withReason("Workspace Agent not available if Dev machine are not RUNNING");
+                                      .withReason("Workspace Agent not available");
         }
         try {
-            final HttpJsonRequest pingRequest = createPingRequest(machine);
+            final HttpJsonRequest pingRequest = createPingRequest(machine, wsAgent);
             final HttpJsonResponse response = pingRequest.request();
-            agentHealthStateDto.withCode(response.getResponseCode())
-                               .withReason(response.asString());
+            agentHealthStateDto.withCode(response.getResponseCode());
         } catch (IOException e) {
             agentHealthStateDto.withCode(SERVICE_UNAVAILABLE.getStatusCode())
                                .withReason(e.getMessage());
@@ -96,15 +92,8 @@ public class WsAgentHealthCheckerImpl implements WsAgentHealthChecker {
     }
 
     // forms the ping request based on information about the machine.
-    protected HttpJsonRequest createPingRequest(Machine machine) throws ServerException {
-        Map<String, ? extends Server> servers = machine.getRuntime().getServers();
-        Server wsAgentServer = servers.get(Constants.WS_AGENT_PORT);
-        if (wsAgentServer == null) {
-            LOG.error("{} WorkspaceId: {}, DevMachine Id: {}, found servers: {}",
-                      WS_AGENT_SERVER_NOT_FOUND_ERROR, machine.getWorkspaceId(), machine.getId(), servers);
-            throw new ServerException(WS_AGENT_SERVER_NOT_FOUND_ERROR);
-        }
-        String wsAgentPingUrl = wsAgentServer.getUrl();
+    protected HttpJsonRequest createPingRequest(Machine machine, Server wsAgent) throws ServerException {
+        String wsAgentPingUrl = wsAgent.getUrl();
         // since everrest mapped on the slash in case of it absence
         // we will always obtain not found response
         if (!wsAgentPingUrl.endsWith("/")) {
