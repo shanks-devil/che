@@ -59,8 +59,7 @@ public class WsAgentHealthCheckerImpl implements WsAgentHealthChecker {
 
     @Override
     public WsAgentHealthStateDto check(Machine machine) throws NotFoundException, ServerException {
-        final Map<String, ? extends Server> servers = machine.getRuntime().getServers();
-        Server wsAgent = getWsAgent(servers);
+        Server wsAgent = getWsAgent(machine);
         final WsAgentHealthStateDto agentHealthStateDto = newDto(WsAgentHealthStateDto.class);
         if (wsAgent == null) {
             return agentHealthStateDto.withCode(NOT_FOUND.getStatusCode())
@@ -79,7 +78,8 @@ public class WsAgentHealthCheckerImpl implements WsAgentHealthChecker {
         return agentHealthStateDto;
     }
 
-    private Server getWsAgent(Map<String, ? extends Server> servers) {
+    private Server getWsAgent(Machine machine) {
+        final Map<String, ? extends Server> servers = machine.getRuntime().getServers();
         for (Server server : servers.values()) {
             if (WSAGENT_REFERENCE.equals(server.getRef())) {
                 return server;
