@@ -10,29 +10,21 @@
  *******************************************************************************/
 package org.eclipse.che.api.agent.server;
 
-import org.eclipse.che.api.core.BadRequestException;
-import org.eclipse.che.api.core.ConflictException;
-import org.eclipse.che.api.core.ForbiddenException;
-import org.eclipse.che.api.core.NotFoundException;
+import org.eclipse.che.api.core.ApiException;
 import org.eclipse.che.api.core.ServerException;
-import org.eclipse.che.api.core.UnauthorizedException;
 import org.eclipse.che.api.core.model.machine.Machine;
 import org.eclipse.che.api.core.model.machine.Server;
 import org.eclipse.che.api.core.rest.HttpJsonRequest;
-import org.eclipse.che.api.core.rest.HttpJsonRequestFactory;
 import org.eclipse.che.api.core.rest.HttpJsonResponse;
 import org.eclipse.che.api.workspace.shared.dto.WsAgentHealthStateDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
-import javax.inject.Named;
 import javax.inject.Singleton;
-import javax.ws.rs.HttpMethod;
 import java.io.IOException;
 import java.util.Map;
 
-import static com.google.common.base.Strings.isNullOrEmpty;
 import static javax.ws.rs.core.Response.Status.NOT_FOUND;
 import static javax.ws.rs.core.Response.Status.SERVICE_UNAVAILABLE;
 import static org.eclipse.che.api.machine.shared.Constants.WSAGENT_REFERENCE;
@@ -48,14 +40,11 @@ import static org.eclipse.che.dto.server.DtoFactory.newDto;
 public class WsAgentHealthCheckerImpl implements WsAgentHealthChecker {
     protected static final Logger LOG = LoggerFactory.getLogger(WsAgentHealthCheckerImpl.class);
 
-    private final HttpJsonRequestFactory httpJsonRequestFactory;
-    private final int                    wsAgentPingConnectionTimeoutMs;
+    private final WsAgentPingRequestFactory wsAgentPingRequestFactory;
 
     @Inject
-    public WsAgentHealthCheckerImpl(HttpJsonRequestFactory httpJsonRequestFactory,
-                                    @Named("machine.ws_agent.ping_conn_timeout_ms") int wsAgentPingConnectionTimeoutMs) {
-        this.httpJsonRequestFactory = httpJsonRequestFactory;
-        this.wsAgentPingConnectionTimeoutMs = wsAgentPingConnectionTimeoutMs;
+    public WsAgentHealthCheckerImpl(WsAgentPingRequestFactory wsAgentPingRequestFactory) {
+        this.wsAgentPingRequestFactory = wsAgentPingRequestFactory;
     }
 
     @Override
@@ -67,16 +56,17 @@ public class WsAgentHealthCheckerImpl implements WsAgentHealthChecker {
                                       .withReason("Workspace Agent not available");
         }
         try {
-            final HttpJsonRequest pingRequest = createPingRequest(machine, wsAgent);
+            final HttpJsonRequest pingRequest = createPingRequest(machine);
             final HttpJsonResponse response = pingRequest.request();
-            agentHealthStateDto.withCode(response.getResponseCode());
-        } catch (IOException e) {
-            agentHealthStateDto.withCode(SERVICE_UNAVAILABLE.getStatusCode())
-                               .withReason(e.getMessage());
-        } catch (ForbiddenException | BadRequestException | NotFoundException | ConflictException | UnauthorizedException e) {
-            throw new ServerException(e);
+            return agentHealthStateDto.withCode(response.getResponseCode());
+        } catch (ApiException | IOException e) {
+            return agentHealthStateDto.withCode(SERVICE_UNAVAILABLE.getStatusCode())
+                                      .withReason(e.getMessage());
         }
-        return agentHealthStateDto;
+    }
+
+    protected HttpJsonRequest createPingRequest(Machine machine) throws ServerException {
+        return wsAgentPingRequestFactory.createRequest(machine);
     }
 
     private Server getWsAgent(Machine machine) {
@@ -87,24 +77,6 @@ public class WsAgentHealthCheckerImpl implements WsAgentHealthChecker {
             }
         }
         return null;
-    }
-
-    // forms the ping request based on information about the machine.
-    protected HttpJsonRequest createPingRequest(Machine machine, Server wsAgent) throws ServerException {
-        String wsAgentPingUrl = wsAgent.getUrl();
-        if (isNullOrEmpty(wsAgentPingUrl)) {
-            String message = "URL of Workspace Agent is null or empty.";
-            LOG.error(message);
-            throw new ServerException(message);
-        }
-        // since everrest mapped on the slash in case of it absence
-        // we will always obtain not found response
-        if (!wsAgentPingUrl.endsWith("/")) {
-            wsAgentPingUrl = wsAgentPingUrl.concat("/");
-        }
-        return httpJsonRequestFactory.fromUrl(wsAgentPingUrl)
-                                     .setMethod(HttpMethod.GET)
-                                     .setTimeout(wsAgentPingConnectionTimeoutMs);
     }
 
 }

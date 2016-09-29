@@ -10,12 +10,10 @@
  *******************************************************************************/
 package org.eclipse.che.api.agent.server;
 
-import org.eclipse.che.api.core.ServerException;
 import org.eclipse.che.api.core.model.machine.Machine;
 import org.eclipse.che.api.core.model.machine.MachineRuntimeInfo;
 import org.eclipse.che.api.core.model.machine.Server;
 import org.eclipse.che.api.core.rest.HttpJsonRequest;
-import org.eclipse.che.api.core.rest.HttpJsonRequestFactory;
 import org.eclipse.che.api.core.rest.HttpJsonResponse;
 import org.eclipse.che.api.workspace.shared.dto.WsAgentHealthStateDto;
 import org.mockito.Mock;
@@ -35,7 +33,6 @@ import static org.eclipse.che.api.machine.shared.Constants.WSAGENT_REFERENCE;
 import static org.eclipse.che.api.machine.shared.Constants.WS_AGENT_PORT;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
@@ -47,12 +44,10 @@ import static org.testng.Assert.assertEquals;
  */
 @Listeners(value = {MockitoTestNGListener.class})
 public class WsAgentHealthCheckerTest {
-    private final static int    WS_AGENT_PING_CONNECTION_TIMEOUT_MS = 20;
-    private final static String WS_AGENT_URL_IS_NOT_VALID           = "URL of Workspace Agent is null or empty.";
     private final static String WS_AGENT_SERVER_URL                 = "ws_agent";
 
     @Mock
-    private HttpJsonRequestFactory httpJsonRequestFactory;
+    private WsAgentPingRequestFactory wsAgentPingRequestFactory;
     @Mock
     private Machine                devMachine;
     @Mock
@@ -75,10 +70,10 @@ public class WsAgentHealthCheckerTest {
 
         when(server.getRef()).thenReturn(WSAGENT_REFERENCE);
         when(server.getUrl()).thenReturn(WS_AGENT_SERVER_URL);
+        when(wsAgentPingRequestFactory.createRequest(devMachine)).thenReturn(httpJsonRequest);
 
-        checker = new WsAgentHealthCheckerImpl(httpJsonRequestFactory, WS_AGENT_PING_CONNECTION_TIMEOUT_MS);
+        checker = new WsAgentHealthCheckerImpl(wsAgentPingRequestFactory);
 
-        when(httpJsonRequestFactory.fromUrl(anyString())).thenReturn(httpJsonRequest);
         when(httpJsonRequest.setMethod(any())).thenReturn(httpJsonRequest);
         when(httpJsonRequest.setTimeout(anyInt())).thenReturn(httpJsonRequest);
         when(httpJsonRequest.request()).thenReturn(httpJsonResponse);
@@ -112,9 +107,6 @@ public class WsAgentHealthCheckerTest {
     public void pingRequestToWsAgentShouldBeSent() throws Exception {
         final WsAgentHealthStateDto result = checker.check(devMachine);
 
-        verify(httpJsonRequestFactory).fromUrl(WS_AGENT_SERVER_URL + '/');
-        verify(httpJsonRequest).setMethod(javax.ws.rs.HttpMethod.GET);
-        verify(httpJsonRequest).setTimeout(WS_AGENT_PING_CONNECTION_TIMEOUT_MS);
         verify(httpJsonRequest).request();
 
         assertEquals(200, result.getCode());
@@ -123,28 +115,11 @@ public class WsAgentHealthCheckerTest {
     @Test
     public void returnResultWithUnavailableStateIfDoNotGetResponseFromWsAgent() throws Exception {
         doThrow(IOException.class).when(httpJsonRequest).request();
-
         final WsAgentHealthStateDto result = checker.check(devMachine);
 
-        verify(httpJsonRequestFactory).fromUrl(WS_AGENT_SERVER_URL + '/');
-        verify(httpJsonRequest).setMethod(javax.ws.rs.HttpMethod.GET);
-        verify(httpJsonRequest).setTimeout(WS_AGENT_PING_CONNECTION_TIMEOUT_MS);
         verify(httpJsonRequest).request();
 
         assertEquals(SERVICE_UNAVAILABLE.getStatusCode(), result.getCode());
     }
 
-    @Test(expectedExceptions = ServerException.class, expectedExceptionsMessageRegExp = WS_AGENT_URL_IS_NOT_VALID)
-    public void throwsServerExceptionWhenWsServerUrlIsNull() throws Exception {
-        when(server.getUrl()).thenReturn(null);
-
-        checker.check(devMachine);
-    }
-
-    @Test(expectedExceptions = ServerException.class, expectedExceptionsMessageRegExp = WS_AGENT_URL_IS_NOT_VALID)
-    public void throwsServerExceptionWhenWsServerUrlIsEmpty() throws Exception {
-        when(server.getUrl()).thenReturn("");
-
-        checker.check(devMachine);
-    }
 }

@@ -10,7 +10,6 @@
  *******************************************************************************/
 package org.eclipse.che.api.agent.server;
 
-import org.eclipse.che.api.core.NotFoundException;
 import org.eclipse.che.api.core.ServerException;
 import org.eclipse.che.api.core.model.machine.Machine;
 import org.eclipse.che.api.workspace.shared.dto.WsAgentHealthStateDto;
@@ -44,5 +43,5 @@ public interface WsAgentHealthChecker {
      * @throws ServerException
      *         if internal server error occurred
      */
-    WsAgentHealthStateDto check(Machine machine) throws NotFoundException, ServerException;
+    WsAgentHealthStateDto check(Machine machine) throws ServerException;
 }
