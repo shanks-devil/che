@@ -18,7 +18,7 @@ import org.eclipse.che.api.promises.client.OperationException;
 import org.eclipse.che.api.promises.client.Promise;
 import org.eclipse.che.api.promises.client.PromiseError;
 import org.eclipse.che.api.promises.client.callback.AsyncPromiseHelper.RequestCall;
-import org.eclipse.che.ide.api.oauth.SVNoperation;
+import org.eclipse.che.ide.api.oauth.RemoteSVNOperation;
 import org.eclipse.che.ide.api.oauth.SubversionAuthenticator;
 import org.eclipse.che.ide.resource.Path;
 import org.eclipse.che.plugin.svn.ide.SubversionClientService;
@@ -38,7 +38,7 @@ public class SubversionAuthenticatorImpl implements SubversionAuthenticator, Sub
     private String              projectPath;
     private String              authenticationUrl;
     private AsyncCallback<Void> callback;
-    private SVNoperation        operation;
+    private RemoteSVNOperation  operation;
 
     @Inject
     public SubversionAuthenticatorImpl(SubversionAuthenticatorView view,
@@ -49,16 +49,21 @@ public class SubversionAuthenticatorImpl implements SubversionAuthenticator, Sub
     }
 
     @Override
-    public void authenticate(String projectPath, String authenticationUrl, Path path, AsyncCallback<Void> callback) {
+    public Promise<Void> authenticate(String projectPath, String authenticationUrl, Path path) {
         this.projectPath = projectPath;
         this.authenticationUrl = authenticationUrl;
-        this.callback = callback;
         view.cleanCredentials();
         view.showDialog();
+        return createFromAsyncRequest(new RequestCall<Void>() {
+            @Override
+            public void makeCall(final AsyncCallback<Void> callback) {
+                SubversionAuthenticatorImpl.this.callback = callback;
+            }
+        });
     }
 
     @Override
-    public Promise<Void> authenticate(SVNoperation operation) {
+    public Promise<Void> authenticate(RemoteSVNOperation operation) {
         this.operation = operation;
         view.cleanCredentials();
         view.showDialog();

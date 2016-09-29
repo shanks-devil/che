@@ -19,7 +19,7 @@ import org.eclipse.che.api.promises.client.PromiseError;
 import org.eclipse.che.ide.api.app.AppContext;
 import org.eclipse.che.ide.api.notification.NotificationManager;
 import org.eclipse.che.ide.api.notification.StatusNotification;
-import org.eclipse.che.ide.api.oauth.SVNoperation;
+import org.eclipse.che.ide.api.oauth.RemoteSVNOperation;
 import org.eclipse.che.ide.api.oauth.SubversionAuthenticator;
 import org.eclipse.che.ide.api.resources.Project;
 import org.eclipse.che.ide.api.resources.Resource;
@@ -110,7 +110,9 @@ public class UpdatePresenter extends SubversionActionPresenter {
                    @Override
                    public void apply(PromiseError error) throws OperationException {
                        if (error.getMessage().contains("Authentication failed")) {
-                           subversionAuthenticator.authenticate(new SVNoperation() {
+                           notification.setTitle("Authentication required");
+                           notification.setStatus(FAIL);
+                           subversionAuthenticator.authenticate(new RemoteSVNOperation() {
                                @Override
                                public void perform(String userName, String password) {
                                    doUpdate(revision, depth, ignoreExternals, view, userName, password);
@@ -118,7 +120,7 @@ public class UpdatePresenter extends SubversionActionPresenter {
                            }).catchError(new Operation<PromiseError>() {
                                @Override
                                public void apply(PromiseError error) throws OperationException {
-                                   notification.setTitle(constants.updateFailed());
+                                   notification.setTitle(error.getMessage());
                                    notification.setStatus(FAIL);
                                }
                            });

@@ -39,7 +39,6 @@ import org.eclipse.che.ide.api.resources.Project;
 import org.eclipse.che.ide.api.resources.Resource;
 import org.eclipse.che.ide.api.wizard.Wizard.CompleteCallback;
 import org.eclipse.che.ide.resource.Path;
-import org.eclipse.che.ide.resources.impl.ResourceManager;
 import org.eclipse.che.ide.rest.RestContext;
 import org.eclipse.che.ide.util.ExceptionUtils;
 import org.eclipse.che.security.oauth.OAuthStatus;
@@ -152,32 +151,18 @@ public class ProjectImporter extends AbstractImporter {
                                          return createFromAsyncRequest(new RequestCall<Project>() {
                                              @Override
                                              public void makeCall(final AsyncCallback<Project> callback) {
-                                                 svnAuthenticator.authenticate(attributes.get("projectPath"),
-                                                                               authenticateUrl, path, new AsyncCallback<Void>() {
+                                                 svnAuthenticator.authenticate(attributes.get("projectPath"), authenticateUrl, path).then(
+                                                         new Operation<Void>() {
                                                              @Override
-                                                             public void onFailure(Throwable caught) {
-                                                                 callback.onFailure(new Exception(caught.getMessage()));
+                                                             public void apply(Void arg) throws OperationException {
+                                                                 registerProject(path, callback, subscriber);
                                                              }
-
-                                                             @Override
-                                                             public void onSuccess(Void result) {
-                                                                 final Container workspaceRoot = appContext.getWorkspaceRoot();
-                                                                 workspaceRoot.findResource(path, true).then(new Operation<Optional<Resource>>() {
-                                                                     @Override
-                                                                     public void apply(Optional<Resource> resourceOptional) throws OperationException {
-                                                                         workspaceRoot.getProject(path, resourceOptional).thenPromise(new Function<Project, Promise<Project>>() {
-                                                                             @Override
-                                                                             public Promise<Project> apply(Project project) throws FunctionException {
-                                                                                 callback.onSuccess(project);
-                                                                                 subscriber.onSuccess();
-
-                                                                                 return projectResolver.resolve(project);
-                                                                             }
-                                                                         });
-                                                                     }
-                                                                 });
-                                                             }
-                                                         });
+                                                         }).catchError(new Operation<PromiseError>() {
+                                                     @Override
+                                                     public void apply(PromiseError error) throws OperationException {
+                                                         callback.onFailure(error.getCause());
+                                                     }
+                                                 });
                                              }
                                          });
                                      case UNAUTHORIZED_GIT_OPERATION:
@@ -195,6 +180,23 @@ public class ProjectImporter extends AbstractImporter {
                                  }
                              }
                          });
+    }
+
+    private void registerProject(final Path path, final AsyncCallback<Project> callback, final ProjectNotificationSubscriber subscriber) {
+        final Container workspaceRoot = appContext.getWorkspaceRoot();
+        workspaceRoot.findResource(path, true).then(new Operation<Optional<Resource>>() {
+            @Override
+            public void apply(Optional<Resource> resourceOptional) throws OperationException {
+                workspaceRoot.getProject(path, resourceOptional).thenPromise(new Function<Project, Promise<Project>>() {
+                    @Override
+                    public Promise<Project> apply(Project project) throws FunctionException {
+                        callback.onSuccess(project);
+                        subscriber.onSuccess();
+                        return projectResolver.resolve(project);
+                    }
+                });
+            }
+        });
     }
 
     private Promise<Project> authUserAndRecallImport(final String providerName,

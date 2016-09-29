@@ -11,8 +11,8 @@
 package org.eclipse.che.ide.api.oauth;
 
 /**
- * Created by ivinokur on 28.09.16.
+ * @author Igor Vinokur
  */
-public interface SVNoperation {
+public interface RemoteSVNOperation {
     void perform(String login, String password);
 }
