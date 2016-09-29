@@ -41,8 +41,6 @@ public interface WsAgentHealthChecker {
      * @param machine
      *         machine instance
      * @return state of the ws agent
-     * @throws NotFoundException
-     *         if the agent with specified id does not exist
      * @throws ServerException
      *         if internal server error occurred
      */

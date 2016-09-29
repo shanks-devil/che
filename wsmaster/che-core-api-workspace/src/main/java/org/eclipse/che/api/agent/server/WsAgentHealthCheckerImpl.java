@@ -32,6 +32,7 @@ import javax.ws.rs.HttpMethod;
 import java.io.IOException;
 import java.util.Map;
 
+import static com.google.common.base.Strings.isNullOrEmpty;
 import static javax.ws.rs.core.Response.Status.NOT_FOUND;
 import static javax.ws.rs.core.Response.Status.SERVICE_UNAVAILABLE;
 import static org.eclipse.che.api.machine.shared.Constants.WSAGENT_REFERENCE;
@@ -58,7 +59,7 @@ public class WsAgentHealthCheckerImpl implements WsAgentHealthChecker {
     }
 
     @Override
-    public WsAgentHealthStateDto check(Machine machine) throws NotFoundException, ServerException {
+    public WsAgentHealthStateDto check(Machine machine) throws ServerException {
         Server wsAgent = getWsAgent(machine);
         final WsAgentHealthStateDto agentHealthStateDto = newDto(WsAgentHealthStateDto.class);
         if (wsAgent == null) {
@@ -72,7 +73,7 @@ public class WsAgentHealthCheckerImpl implements WsAgentHealthChecker {
         } catch (IOException e) {
             agentHealthStateDto.withCode(SERVICE_UNAVAILABLE.getStatusCode())
                                .withReason(e.getMessage());
-        } catch (ForbiddenException | BadRequestException | ConflictException | UnauthorizedException e) {
+        } catch (ForbiddenException | BadRequestException | NotFoundException | ConflictException | UnauthorizedException e) {
             throw new ServerException(e);
         }
         return agentHealthStateDto;
@@ -91,6 +92,11 @@ public class WsAgentHealthCheckerImpl implements WsAgentHealthChecker {
     // forms the ping request based on information about the machine.
     protected HttpJsonRequest createPingRequest(Machine machine, Server wsAgent) throws ServerException {
         String wsAgentPingUrl = wsAgent.getUrl();
+        if (isNullOrEmpty(wsAgentPingUrl)) {
+            String message = "URL of Workspace Agent is null or empty.";
+            LOG.error(message);
+            throw new ServerException(message);
+        }
         // since everrest mapped on the slash in case of it absence
         // we will always obtain not found response
         if (!wsAgentPingUrl.endsWith("/")) {

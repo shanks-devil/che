@@ -10,6 +10,7 @@
  *******************************************************************************/
 package org.eclipse.che.api.agent.server;
 
+import org.eclipse.che.api.core.ServerException;
 import org.eclipse.che.api.core.model.machine.Machine;
 import org.eclipse.che.api.core.model.machine.MachineRuntimeInfo;
 import org.eclipse.che.api.core.model.machine.Server;
@@ -47,6 +48,7 @@ import static org.testng.Assert.assertEquals;
 @Listeners(value = {MockitoTestNGListener.class})
 public class WsAgentHealthCheckerTest {
     private final static int    WS_AGENT_PING_CONNECTION_TIMEOUT_MS = 20;
+    private final static String WS_AGENT_URL_IS_NOT_VALID           = "URL of Workspace Agent is null or empty.";
     private final static String WS_AGENT_SERVER_URL                 = "ws_agent";
 
     @Mock
@@ -130,5 +132,19 @@ public class WsAgentHealthCheckerTest {
         verify(httpJsonRequest).request();
 
         assertEquals(SERVICE_UNAVAILABLE.getStatusCode(), result.getCode());
+    }
+
+    @Test(expectedExceptions = ServerException.class, expectedExceptionsMessageRegExp = WS_AGENT_URL_IS_NOT_VALID)
+    public void throwsServerExceptionWhenWsServerUrlIsNull() throws Exception {
+        when(server.getUrl()).thenReturn(null);
+
+        checker.check(devMachine);
+    }
+
+    @Test(expectedExceptions = ServerException.class, expectedExceptionsMessageRegExp = WS_AGENT_URL_IS_NOT_VALID)
+    public void throwsServerExceptionWhenWsServerUrlIsEmpty() throws Exception {
+        when(server.getUrl()).thenReturn("");
+
+        checker.check(devMachine);
     }
 }

@@ -668,9 +668,8 @@ public class WorkspaceService extends Service {
     @GET
     @Path("/{id}/check")
     @Produces(APPLICATION_JSON)
-    @ApiOperation(value = "Get state of the workspace agent by the workspace id and agent id")
+    @ApiOperation(value = "Get state of the workspace agent by the workspace id")
     @ApiResponses({@ApiResponse(code = 200, message = "The response contains requested workspace entity"),
-                   @ApiResponse(code = 400, message = "Missed required parameters, parameters are not valid"),
                    @ApiResponse(code = 404, message = "The workspace with specified id does not exist"),
                    @ApiResponse(code = 500, message = "Internal server error occurred")})
     public WsAgentHealthStateDto checkAgentHealth(@ApiParam(value = "Workspace id")
