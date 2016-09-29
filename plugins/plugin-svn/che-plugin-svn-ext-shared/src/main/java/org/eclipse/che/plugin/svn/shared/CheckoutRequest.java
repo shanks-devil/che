@@ -122,38 +122,22 @@ public interface CheckoutRequest {
     CheckoutRequest withRevision(@NotNull final String revision);
 
 
-    /**
-     * @return the revision to checkout
-     */
-    String getLogin();
+    /** @return user name for authentication */
+    String getUserName();
 
-    /**
-     * @param revision the revision to set
-     */
-    void setLogin(@NotNull final String login);
+    /** Set user name for authentication. */
+    void setUserName(@NotNull final String username);
 
-    /**
-     * @param revision the revision
-     *
-     * @return the request
-     */
-    CheckoutRequest withLogin(@NotNull final String login);
+    /** @return {@link CheckoutRequest} with specified user name for authentication */
+    CheckoutRequest withUserName(@NotNull final String username);
 
-    /**
-     * @return the revision to checkout
-     */
+    /** @return password for authentication */
     String getPassword();
 
-    /**
-     * @param revision the revision to set
-     */
+    /** Set password for authentication. */
     void setPassword(@NotNull final String password);
 
-    /**
-     * @param revision the revision
-     *
-     * @return the request
-     */
+    /** @return {@link CheckoutRequest} with specified password for authentication */
     CheckoutRequest withPassword(@NotNull final String password);
 
 }

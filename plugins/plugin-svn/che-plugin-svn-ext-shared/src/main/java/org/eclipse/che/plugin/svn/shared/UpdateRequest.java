@@ -119,4 +119,22 @@ public interface UpdateRequest {
      */
     UpdateRequest withRevision(@NotNull final String revision);
 
+    /** @return user name for authentication */
+    String getUserName();
+
+    /** Set user name for authentication. */
+    void setUserName(@NotNull final String username);
+
+    /** @return {@link CheckoutRequest} with specified user name for authentication */
+    UpdateRequest withUserName(@NotNull final String username);
+
+    /** @return password for authentication */
+    String getPassword();
+
+    /** Set password for authentication. */
+    void setPassword(@NotNull final String password);
+
+    /** @return {@link CheckoutRequest} with specified password for authentication */
+    UpdateRequest withPassword(@NotNull final String password);
+
 }

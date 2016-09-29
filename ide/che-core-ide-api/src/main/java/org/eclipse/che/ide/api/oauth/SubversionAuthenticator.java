@@ -12,6 +12,7 @@ package org.eclipse.che.ide.api.oauth;
 
 import com.google.gwt.user.client.rpc.AsyncCallback;
 
+import org.eclipse.che.api.promises.client.Promise;
 import org.eclipse.che.ide.resource.Path;
 
 /**
@@ -19,5 +20,5 @@ import org.eclipse.che.ide.resource.Path;
  */
 public interface SubversionAuthenticator {
     void authenticate(String projectPath, String authenticationUrl, Path path, AsyncCallback<Void> callback);
-    void authenticate(SVNoperation operation);
+    Promise<Void> authenticate(SVNoperation operation);
 }

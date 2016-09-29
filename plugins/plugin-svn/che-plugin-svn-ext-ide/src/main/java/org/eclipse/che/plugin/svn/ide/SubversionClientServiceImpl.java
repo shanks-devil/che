@@ -199,11 +199,13 @@ public class SubversionClientServiceImpl implements SubversionClientService {
     }
 
     @Override
-    public Promise<CLIOutputWithRevisionResponse> update(Path project, Path[] paths, String revision, String depth, boolean ignoreExternals,
+    public Promise<CLIOutputWithRevisionResponse> update(Path project, String username, String password, Path[] paths, String revision, String depth, boolean ignoreExternals,
                                                          String accept) {
         final UpdateRequest request =
                 dtoFactory.createDto(UpdateRequest.class)
                           .withProjectPath(project.toString())
+                          .withUserName(username)
+                          .withPassword(password)
                           .withPaths(toList(paths))
                           .withRevision(revision)
                           .withDepth(depth)
@@ -216,12 +218,12 @@ public class SubversionClientServiceImpl implements SubversionClientService {
     }
 
     @Override
-    public Promise<CLIOutputWithRevisionResponse> checkout(String projectPath, String url, String login, String password, String revision, String depth,
+    public Promise<CLIOutputWithRevisionResponse> checkout(String projectPath, String url, String username, String password, String revision, String depth,
                                                            boolean ignoreExternals) {
         final CheckoutRequest request = dtoFactory.createDto(CheckoutRequest.class)
                                                   .withUrl(url)
                                                   .withProjectPath(projectPath)
-                                                  .withLogin(login)
+                                                  .withUserName(username)
                                                   .withPassword(password)
                                                   .withRevision(revision)
                                                   .withDepth(depth)

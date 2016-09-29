@@ -162,9 +162,9 @@ public interface SubversionClientService {
      * @param accept
      *         the accept argument (--accept)
      */
-    Promise<CLIOutputWithRevisionResponse> update(Path project, Path[] paths, String revision, String depth, boolean ignoreExternals, String accept);
+    Promise<CLIOutputWithRevisionResponse> update(Path project, String userName, String password, Path[] paths, String revision, String depth, boolean ignoreExternals, String accept);
 
-    Promise<CLIOutputWithRevisionResponse> checkout(String projectPath, String url, String login, String password, String revision, String depth, boolean ignoreExternals);
+    Promise<CLIOutputWithRevisionResponse> checkout(String projectPath, String url, String userName, String password, String revision, String depth, boolean ignoreExternals);
 
     Promise<CLIOutputResponse> showLog(Path project, Path[] paths, String revision);
 

@@ -17,10 +17,15 @@ import com.google.common.io.Files;
 import com.google.common.net.MediaType;
 import com.google.inject.Singleton;
 
+import org.eclipse.che.api.core.ConflictException;
 import org.eclipse.che.api.core.ErrorCodes;
+import org.eclipse.che.api.core.NotFoundException;
 import org.eclipse.che.api.core.ServerException;
 import org.eclipse.che.api.core.UnauthorizedException;
 import org.eclipse.che.api.core.util.LineConsumerFactory;
+import org.eclipse.che.api.project.server.FolderEntry;
+import org.eclipse.che.api.project.server.ProjectRegistry;
+import org.eclipse.che.api.project.server.VirtualFileEntry;
 import org.eclipse.che.api.vfs.util.DeleteOnCloseFileInputStream;
 import org.eclipse.che.commons.lang.IoUtil;
 import org.eclipse.che.commons.lang.ZipUtils;
@@ -248,15 +253,16 @@ public class SubversionApi {
         cliArgs.add(request.getUrl());
         cliArgs.add(projectPath.getAbsolutePath());
 
-        String login = request.getLogin();
+        String userName = request.getUserName();
         String password = request.getPassword();
         String[] credentials = null;
-        if (!isNullOrEmpty(login) && !isNullOrEmpty(password)) {
-            credentials = new String[] {login, password};
+        if (!isNullOrEmpty(userName) && !isNullOrEmpty(password)) {
+            credentials = new String[]{userName, password};
         }
 
         try {
-            CommandLineResult result = runCommand(null, cliArgs, projectPath, request.getPaths(), credentials, request.getUrl());
+            CommandLineResult result =
+                    runCommand(null, cliArgs, projectPath.exists() ? projectPath : null, request.getPaths(), credentials, request.getUrl());
 
             return DtoFactory.getInstance().createDto(CLIOutputWithRevisionResponse.class)
                              .withCommand(result.getCommandLine().toString())
@@ -408,8 +414,15 @@ public class SubversionApi {
         // Command Name
         uArgs.add("update");
 
-        final CommandLineResult result = runCommand(null, uArgs, projectPath,
-                                                    addWorkingCopyPathIfNecessary(request.getPaths()));
+        String userName = request.getUserName();
+        String password = request.getPassword();
+        String[] credentials = null;
+        if (!isNullOrEmpty(userName) && !isNullOrEmpty(password)) {
+            credentials = new String[]{userName, password};
+        }
+
+        final CommandLineResult result =
+                runCommand(null, uArgs, projectPath, addWorkingCopyPathIfNecessary(request.getPaths()), credentials);
 
         return DtoFactory.getInstance().createDto(CLIOutputWithRevisionResponse.class)
                          .withCommand(result.getCommandLine().toString())
@@ -862,6 +875,15 @@ public class SubversionApi {
                                          List<String> paths) throws IOException, SubversionException {
         String repoUrl = getRepositoryUrl(projectPath.getAbsolutePath());
         return runCommand(env, args, projectPath, paths, null, repoUrl);
+    }
+
+    private CommandLineResult runCommand(Map<String, String> env,
+                                         List<String> args,
+                                         File projectPath,
+                                         List<String> paths,
+                                         String[] credentials) throws IOException, SubversionException {
+        String repoUrl = getRepositoryUrl(projectPath.getAbsolutePath());
+        return runCommand(env, args, projectPath, paths, credentials, repoUrl);
     }
 
     private CommandLineResult runCommand(Map<String, String> env,

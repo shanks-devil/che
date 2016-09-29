@@ -19,6 +19,8 @@ import org.eclipse.che.api.promises.client.PromiseError;
 import org.eclipse.che.ide.api.app.AppContext;
 import org.eclipse.che.ide.api.notification.NotificationManager;
 import org.eclipse.che.ide.api.notification.StatusNotification;
+import org.eclipse.che.ide.api.oauth.SVNoperation;
+import org.eclipse.che.ide.api.oauth.SubversionAuthenticator;
 import org.eclipse.che.ide.api.resources.Project;
 import org.eclipse.che.ide.api.resources.Resource;
 import org.eclipse.che.ide.extension.machine.client.processes.panel.ProcessesPanelPresenter;
@@ -44,17 +46,20 @@ public class UpdatePresenter extends SubversionActionPresenter {
 
     private final NotificationManager                      notificationManager;
     private final SubversionClientService                  service;
+    private final SubversionAuthenticator                  subversionAuthenticator;
     private final SubversionExtensionLocalizationConstants constants;
 
     @Inject
     public UpdatePresenter(AppContext appContext,
                            SubversionOutputConsoleFactory consoleFactory,
                            SubversionClientService service,
+                           SubversionAuthenticator subversionAuthenticator,
                            ProcessesPanelPresenter processesPanelPresenter,
                            SubversionExtensionLocalizationConstants constants,
                            NotificationManager notificationManager,
                            StatusColors statusColors) {
-        super(appContext, consoleFactory, processesPanelPresenter,  statusColors);
+        super(appContext, consoleFactory, processesPanelPresenter, statusColors);
+        this.subversionAuthenticator = subversionAuthenticator;
 
         this.constants = constants;
         this.notificationManager = notificationManager;
@@ -62,11 +67,11 @@ public class UpdatePresenter extends SubversionActionPresenter {
     }
 
     public void showUpdate() {
-        doUpdate("HEAD", "infinity", false, null);
+        doUpdate("HEAD", "infinity", false, null, null, null);
     }
 
     protected void doUpdate(final String revision, final String depth, final boolean ignoreExternals,
-                            final UpdateToRevisionView view) {
+                            final UpdateToRevisionView view, String userName, String password) {
 
         final Project project = appContext.getRootProject();
 
@@ -79,28 +84,50 @@ public class UpdatePresenter extends SubversionActionPresenter {
         final StatusNotification notification = new StatusNotification(constants.updateToRevisionStarted(revision), PROGRESS, FLOAT_MODE);
         notificationManager.notify(notification);
 
-        service.update(project.getLocation(), toRelative(project, resources), revision, depth, ignoreExternals, "postpone")
-                .then(new Operation<CLIOutputWithRevisionResponse>() {
-                    @Override
-                    public void apply(CLIOutputWithRevisionResponse response) throws OperationException {
-                        printResponse(response.getCommand(), response.getOutput(), response.getErrOutput(),
-                                      constants.commandUpdate());
+        service.update(project.getLocation(),
+                       userName,
+                       password,
+                       toRelative(project, resources),
+                       revision,
+                       depth,
+                       ignoreExternals,
+                       "postpone")
+               .then(new Operation<CLIOutputWithRevisionResponse>() {
+                   @Override
+                   public void apply(CLIOutputWithRevisionResponse response) throws OperationException {
+                       printResponse(response.getCommand(), response.getOutput(), response.getErrOutput(),
+                                     constants.commandUpdate());
 
-                        notification.setTitle(constants.updateSuccessful(Long.toString(response.getRevision())));
-                        notification.setStatus(SUCCESS);
+                       notification.setTitle(constants.updateSuccessful(Long.toString(response.getRevision())));
+                       notification.setStatus(SUCCESS);
 
-                        if (view != null) {
-                            view.close();
-                        }
-                    }
-                })
-                .catchError(new Operation<PromiseError>() {
-                    @Override
-                    public void apply(PromiseError error) throws OperationException {
-                        notification.setTitle(constants.updateFailed());
-                        notification.setStatus(FAIL);
-                    }
-                });
+                       if (view != null) {
+                           view.close();
+                       }
+                   }
+               })
+               .catchError(new Operation<PromiseError>() {
+                   @Override
+                   public void apply(PromiseError error) throws OperationException {
+                       if (error.getMessage().contains("Authentication failed")) {
+                           subversionAuthenticator.authenticate(new SVNoperation() {
+                               @Override
+                               public void perform(String userName, String password) {
+                                   doUpdate(revision, depth, ignoreExternals, view, userName, password);
+                               }
+                           }).catchError(new Operation<PromiseError>() {
+                               @Override
+                               public void apply(PromiseError error) throws OperationException {
+                                   notification.setTitle(constants.updateFailed());
+                                   notification.setStatus(FAIL);
+                               }
+                           });
+                       } else {
+                           notification.setTitle(constants.updateFailed());
+                           notification.setStatus(FAIL);
+                       }
+                   }
+               });
     }
 
 }

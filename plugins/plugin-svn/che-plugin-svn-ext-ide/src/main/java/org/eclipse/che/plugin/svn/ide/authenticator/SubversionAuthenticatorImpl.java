@@ -15,14 +15,16 @@ import com.google.inject.Inject;
 
 import org.eclipse.che.api.promises.client.Operation;
 import org.eclipse.che.api.promises.client.OperationException;
-import org.eclipse.che.ide.api.app.AppContext;
+import org.eclipse.che.api.promises.client.Promise;
+import org.eclipse.che.api.promises.client.PromiseError;
+import org.eclipse.che.api.promises.client.callback.AsyncPromiseHelper.RequestCall;
 import org.eclipse.che.ide.api.oauth.SVNoperation;
 import org.eclipse.che.ide.api.oauth.SubversionAuthenticator;
-import org.eclipse.che.ide.api.resources.Resource;
 import org.eclipse.che.ide.resource.Path;
 import org.eclipse.che.plugin.svn.ide.SubversionClientService;
 import org.eclipse.che.plugin.svn.shared.CLIOutputWithRevisionResponse;
 
+import static org.eclipse.che.api.promises.client.callback.AsyncPromiseHelper.createFromAsyncRequest;
 import static org.eclipse.che.ide.util.StringUtils.isNullOrEmpty;
 
 /**
@@ -30,20 +32,17 @@ import static org.eclipse.che.ide.util.StringUtils.isNullOrEmpty;
  */
 public class SubversionAuthenticatorImpl implements SubversionAuthenticator, SubversionAuthenticatorViewImpl.ActionDelegate {
 
-    private final AppContext appContext;
     private final SubversionAuthenticatorView view;
     private final SubversionClientService     clientService;
 
-    private String projectPath;
-    private String authenticationUrl;
+    private String              projectPath;
+    private String              authenticationUrl;
     private AsyncCallback<Void> callback;
     private SVNoperation        operation;
 
     @Inject
-    public SubversionAuthenticatorImpl(AppContext appContext,
-                                       SubversionAuthenticatorView view,
+    public SubversionAuthenticatorImpl(SubversionAuthenticatorView view,
                                        SubversionClientService clientService) {
-        this.appContext = appContext;
         this.view = view;
         this.clientService = clientService;
         this.view.setDelegate(this);
@@ -59,10 +58,16 @@ public class SubversionAuthenticatorImpl implements SubversionAuthenticator, Sub
     }
 
     @Override
-    public void authenticate(SVNoperation operation) {
+    public Promise<Void> authenticate(SVNoperation operation) {
         this.operation = operation;
         view.cleanCredentials();
         view.showDialog();
+        return createFromAsyncRequest(new RequestCall<Void>() {
+            @Override
+            public void makeCall(final AsyncCallback<Void> callback) {
+                SubversionAuthenticatorImpl.this.callback = callback;
+            }
+        });
     }
 
     @Override
@@ -79,11 +84,15 @@ public class SubversionAuthenticatorImpl implements SubversionAuthenticator, Sub
             clientService.checkout(projectPath, authenticationUrl, view.getUserName(), view.getPassword(), null, null, false)
                          .then(new Operation<CLIOutputWithRevisionResponse>() {
                              @Override
-                             public void apply(CLIOutputWithRevisionResponse arg) throws OperationException {
+                             public void apply(CLIOutputWithRevisionResponse response) throws OperationException {
                                  callback.onSuccess(null);
-                                 //onAuthenticated(OAuthStatus.fromValue(3));
                              }
-                         });
+                         }).catchError(new Operation<PromiseError>() {
+                @Override
+                public void apply(PromiseError error) throws OperationException {
+                    callback.onFailure(error.getCause());
+                }
+            });
         }
         view.closeDialog();
     }
