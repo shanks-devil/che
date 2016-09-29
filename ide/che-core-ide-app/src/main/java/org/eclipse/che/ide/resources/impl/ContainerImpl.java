@@ -95,14 +95,6 @@ abstract class ContainerImpl extends ResourceImpl implements Container {
         return getChildren(false);
     }
 
-    public Promise<Project> getProject (Path path, Optional<Resource> resource) {
-        return resourceManager.getProject(path, resource);
-    }
-
-    public Promise<Optional<Resource>> findResource(final Path absolutePath, boolean quiet) {
-        return resourceManager.findResource(absolutePath, quiet);
-    }
-
     /** {@inheritDoc} */
     @Override
     public Project.ProjectRequest importProject() {

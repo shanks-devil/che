@@ -11,12 +11,10 @@
 package org.eclipse.che.ide.api.oauth;
 
 import org.eclipse.che.api.promises.client.Promise;
-import org.eclipse.che.ide.resource.Path;
 
 /**
  * @author Igor Vinokur
  */
 public interface SubversionAuthenticator {
-    Promise<Void> authenticate(String projectPath, String authenticationUrl, Path path);
-    Promise<Void> authenticate(RemoteSVNOperation operation);
+    Promise<String[]> authenticate();
 }

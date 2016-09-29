@@ -218,23 +218,6 @@ public class SubversionClientServiceImpl implements SubversionClientService {
     }
 
     @Override
-    public Promise<CLIOutputWithRevisionResponse> checkout(String projectPath, String url, String username, String password, String revision, String depth,
-                                                           boolean ignoreExternals) {
-        final CheckoutRequest request = dtoFactory.createDto(CheckoutRequest.class)
-                                                  .withUrl(url)
-                                                  .withProjectPath(projectPath)
-                                                  .withUserName(username)
-                                                  .withPassword(password)
-                                                  .withRevision(revision)
-                                                  .withDepth(depth)
-                                                  .withIgnoreExternals(ignoreExternals);
-
-        return asyncRequestFactory.createPostRequest(getBaseUrl() + "/checkout", request)
-                                  .loader(loader)
-                                  .send(dtoUnmarshallerFactory.newUnmarshaller(CLIOutputWithRevisionResponse.class));
-    }
-
-    @Override
     public Promise<CLIOutputResponse> showLog(Path project, Path[] paths, String revision) {
         final String url = getBaseUrl() + "/showlog";
         final ShowLogRequest request = dtoFactory.createDto(ShowLogRequest.class)

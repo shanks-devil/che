@@ -10,7 +10,6 @@
  *******************************************************************************/
 package org.eclipse.che.ide.projectimport.wizard;
 
-import com.google.common.base.Optional;
 import com.google.common.base.Strings;
 import com.google.gwt.user.client.rpc.AsyncCallback;
 import com.google.inject.Inject;
@@ -34,9 +33,7 @@ import org.eclipse.che.ide.api.oauth.SubversionAuthenticator;
 import org.eclipse.che.ide.api.project.MutableProjectConfig;
 import org.eclipse.che.ide.api.project.wizard.ImportProjectNotificationSubscriberFactory;
 import org.eclipse.che.ide.api.project.wizard.ProjectNotificationSubscriber;
-import org.eclipse.che.ide.api.resources.Container;
 import org.eclipse.che.ide.api.resources.Project;
-import org.eclipse.che.ide.api.resources.Resource;
 import org.eclipse.che.ide.api.wizard.Wizard.CompleteCallback;
 import org.eclipse.che.ide.resource.Path;
 import org.eclipse.che.ide.rest.RestContext;
@@ -151,16 +148,22 @@ public class ProjectImporter extends AbstractImporter {
                                          return createFromAsyncRequest(new RequestCall<Project>() {
                                              @Override
                                              public void makeCall(final AsyncCallback<Project> callback) {
-                                                 svnAuthenticator.authenticate(attributes.get("projectPath"), authenticateUrl, path).then(
-                                                         new Operation<Void>() {
+                                                 svnAuthenticator.authenticate().then(new Operation<String[]>() {
+                                                     @Override
+                                                     public void apply(String[] arg) throws OperationException {
+                                                         sourceStorage.getParameters().put("username", arg[0]);
+                                                         sourceStorage.getParameters().put("password", arg[1]);
+                                                         doImport(path, sourceStorage).then(new Operation<Project>() {
                                                              @Override
-                                                             public void apply(Void arg) throws OperationException {
-                                                                 registerProject(path, callback, subscriber);
+                                                             public void apply(Project project) throws OperationException {
+                                                                 callback.onSuccess(project);
                                                              }
                                                          }).catchError(new Operation<PromiseError>() {
-                                                     @Override
-                                                     public void apply(PromiseError error) throws OperationException {
-                                                         callback.onFailure(error.getCause());
+                                                             @Override
+                                                             public void apply(PromiseError error) throws OperationException {
+                                                                 callback.onFailure(error.getCause());
+                                                             }
+                                                         });
                                                      }
                                                  });
                                              }
@@ -180,23 +183,6 @@ public class ProjectImporter extends AbstractImporter {
                                  }
                              }
                          });
-    }
-
-    private void registerProject(final Path path, final AsyncCallback<Project> callback, final ProjectNotificationSubscriber subscriber) {
-        final Container workspaceRoot = appContext.getWorkspaceRoot();
-        workspaceRoot.findResource(path, true).then(new Operation<Optional<Resource>>() {
-            @Override
-            public void apply(Optional<Resource> resourceOptional) throws OperationException {
-                workspaceRoot.getProject(path, resourceOptional).thenPromise(new Function<Project, Promise<Project>>() {
-                    @Override
-                    public Promise<Project> apply(Project project) throws FunctionException {
-                        callback.onSuccess(project);
-                        subscriber.onSuccess();
-                        return projectResolver.resolve(project);
-                    }
-                });
-            }
-        });
     }
 
     private Promise<Project> authUserAndRecallImport(final String providerName,

@@ -19,7 +19,6 @@ import org.eclipse.che.api.promises.client.PromiseError;
 import org.eclipse.che.ide.api.app.AppContext;
 import org.eclipse.che.ide.api.notification.NotificationManager;
 import org.eclipse.che.ide.api.notification.StatusNotification;
-import org.eclipse.che.ide.api.oauth.RemoteSVNOperation;
 import org.eclipse.che.ide.api.oauth.SubversionAuthenticator;
 import org.eclipse.che.ide.api.resources.Project;
 import org.eclipse.che.ide.api.resources.Resource;
@@ -71,7 +70,7 @@ public class UpdatePresenter extends SubversionActionPresenter {
     }
 
     protected void doUpdate(final String revision, final String depth, final boolean ignoreExternals,
-                            final UpdateToRevisionView view, String userName, String password) {
+                            final UpdateToRevisionView view, final String userName, final String password) {
 
         final Project project = appContext.getRootProject();
 
@@ -108,18 +107,19 @@ public class UpdatePresenter extends SubversionActionPresenter {
                })
                .catchError(new Operation<PromiseError>() {
                    @Override
-                   public void apply(PromiseError error) throws OperationException {
+                   public void apply(final PromiseError error) throws OperationException {
                        if (error.getMessage().contains("Authentication failed")) {
                            notification.setTitle("Authentication required");
                            notification.setStatus(FAIL);
-                           subversionAuthenticator.authenticate(new RemoteSVNOperation() {
+
+                           subversionAuthenticator.authenticate().then(new Operation<String[]>() {
                                @Override
-                               public void perform(String userName, String password) {
-                                   doUpdate(revision, depth, ignoreExternals, view, userName, password);
+                               public void apply(String[] credentials) throws OperationException {
+                                   doUpdate(revision, depth, ignoreExternals, view, credentials[0], credentials[1]);
                                }
                            }).catchError(new Operation<PromiseError>() {
                                @Override
-                               public void apply(PromiseError error) throws OperationException {
+                               public void apply(PromiseError arg) throws OperationException {
                                    notification.setTitle(error.getMessage());
                                    notification.setStatus(FAIL);
                                }

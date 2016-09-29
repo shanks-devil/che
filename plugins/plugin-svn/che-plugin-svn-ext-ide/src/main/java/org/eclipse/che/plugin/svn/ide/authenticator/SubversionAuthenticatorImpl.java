@@ -13,16 +13,9 @@ package org.eclipse.che.plugin.svn.ide.authenticator;
 import com.google.gwt.user.client.rpc.AsyncCallback;
 import com.google.inject.Inject;
 
-import org.eclipse.che.api.promises.client.Operation;
-import org.eclipse.che.api.promises.client.OperationException;
 import org.eclipse.che.api.promises.client.Promise;
-import org.eclipse.che.api.promises.client.PromiseError;
 import org.eclipse.che.api.promises.client.callback.AsyncPromiseHelper.RequestCall;
-import org.eclipse.che.ide.api.oauth.RemoteSVNOperation;
 import org.eclipse.che.ide.api.oauth.SubversionAuthenticator;
-import org.eclipse.che.ide.resource.Path;
-import org.eclipse.che.plugin.svn.ide.SubversionClientService;
-import org.eclipse.che.plugin.svn.shared.CLIOutputWithRevisionResponse;
 
 import static org.eclipse.che.api.promises.client.callback.AsyncPromiseHelper.createFromAsyncRequest;
 import static org.eclipse.che.ide.util.StringUtils.isNullOrEmpty;
@@ -33,43 +26,22 @@ import static org.eclipse.che.ide.util.StringUtils.isNullOrEmpty;
 public class SubversionAuthenticatorImpl implements SubversionAuthenticator, SubversionAuthenticatorViewImpl.ActionDelegate {
 
     private final SubversionAuthenticatorView view;
-    private final SubversionClientService     clientService;
 
-    private String              projectPath;
-    private String              authenticationUrl;
-    private AsyncCallback<Void> callback;
-    private RemoteSVNOperation  operation;
+    private AsyncCallback<String[]> callback;
 
     @Inject
-    public SubversionAuthenticatorImpl(SubversionAuthenticatorView view,
-                                       SubversionClientService clientService) {
+    public SubversionAuthenticatorImpl(SubversionAuthenticatorView view) {
         this.view = view;
-        this.clientService = clientService;
         this.view.setDelegate(this);
     }
 
     @Override
-    public Promise<Void> authenticate(String projectPath, String authenticationUrl, Path path) {
-        this.projectPath = projectPath;
-        this.authenticationUrl = authenticationUrl;
+    public Promise<String[]> authenticate() {
         view.cleanCredentials();
         view.showDialog();
-        return createFromAsyncRequest(new RequestCall<Void>() {
+        return createFromAsyncRequest(new RequestCall<String[]>() {
             @Override
-            public void makeCall(final AsyncCallback<Void> callback) {
-                SubversionAuthenticatorImpl.this.callback = callback;
-            }
-        });
-    }
-
-    @Override
-    public Promise<Void> authenticate(RemoteSVNOperation operation) {
-        this.operation = operation;
-        view.cleanCredentials();
-        view.showDialog();
-        return createFromAsyncRequest(new RequestCall<Void>() {
-            @Override
-            public void makeCall(final AsyncCallback<Void> callback) {
+            public void makeCall(final AsyncCallback<String[]> callback) {
                 SubversionAuthenticatorImpl.this.callback = callback;
             }
         });
@@ -83,22 +55,7 @@ public class SubversionAuthenticatorImpl implements SubversionAuthenticator, Sub
 
     @Override
     public void onLogInClicked() {
-        if (operation != null) {
-            operation.perform(view.getUserName(), view.getPassword());
-        } else {
-            clientService.checkout(projectPath, authenticationUrl, view.getUserName(), view.getPassword(), null, null, false)
-                         .then(new Operation<CLIOutputWithRevisionResponse>() {
-                             @Override
-                             public void apply(CLIOutputWithRevisionResponse response) throws OperationException {
-                                 callback.onSuccess(null);
-                             }
-                         }).catchError(new Operation<PromiseError>() {
-                @Override
-                public void apply(PromiseError error) throws OperationException {
-                    callback.onFailure(error.getCause());
-                }
-            });
-        }
+        callback.onSuccess(new String[]{view.getUserName(), view.getPassword()});
         view.closeDialog();
     }
 
