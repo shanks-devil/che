@@ -36,7 +36,7 @@ public interface WsAgentHealthStateDto {
 
     void setCode(int code);
 
-    /** Returns HTTP status code. */
+    /** Returns HTTP status code, see {@code javax.ws.rs.core.Response.Status} */
     int getCode();
 
     WsAgentHealthStateDto withCode(int code);
