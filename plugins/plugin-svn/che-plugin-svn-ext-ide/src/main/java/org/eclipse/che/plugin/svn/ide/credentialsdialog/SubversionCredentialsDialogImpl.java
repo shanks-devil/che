@@ -8,41 +8,43 @@
  * Contributors:
  *   Codenvy, S.A. - initial API and implementation
  *******************************************************************************/
-package org.eclipse.che.plugin.svn.ide.authenticator;
+package org.eclipse.che.plugin.svn.ide.credentialsdialog;
 
 import com.google.gwt.user.client.rpc.AsyncCallback;
 import com.google.inject.Inject;
 
 import org.eclipse.che.api.promises.client.Promise;
 import org.eclipse.che.api.promises.client.callback.AsyncPromiseHelper.RequestCall;
-import org.eclipse.che.ide.api.oauth.SubversionAuthenticator;
+import org.eclipse.che.ide.api.subversion.SubversionCredentialsDialog;
 
 import static org.eclipse.che.api.promises.client.callback.AsyncPromiseHelper.createFromAsyncRequest;
 import static org.eclipse.che.ide.util.StringUtils.isNullOrEmpty;
 
 /**
+ * Implementation of {@link SubversionCredentialsDialog}.
+ *
  * @author Igor Vinokur
  */
-public class SubversionAuthenticatorImpl implements SubversionAuthenticator, SubversionAuthenticatorViewImpl.ActionDelegate {
+public class SubversionCredentialsDialogImpl implements SubversionCredentialsDialog, SubversionCredentialsDialogViewImpl.ActionDelegate {
 
-    private final SubversionAuthenticatorView view;
+    private final SubversionCredentialsDialogView view;
 
     private AsyncCallback<String[]> callback;
 
     @Inject
-    public SubversionAuthenticatorImpl(SubversionAuthenticatorView view) {
+    public SubversionCredentialsDialogImpl(SubversionCredentialsDialogView view) {
         this.view = view;
         this.view.setDelegate(this);
     }
 
     @Override
-    public Promise<String[]> authenticate() {
+    public Promise<String[]> askCredentials() {
         view.cleanCredentials();
         view.showDialog();
         return createFromAsyncRequest(new RequestCall<String[]>() {
             @Override
             public void makeCall(final AsyncCallback<String[]> callback) {
-                SubversionAuthenticatorImpl.this.callback = callback;
+                SubversionCredentialsDialogImpl.this.callback = callback;
             }
         });
     }
@@ -54,13 +56,13 @@ public class SubversionAuthenticatorImpl implements SubversionAuthenticator, Sub
     }
 
     @Override
-    public void onLogInClicked() {
+    public void onAuthenticateClicked() {
         callback.onSuccess(new String[]{view.getUserName(), view.getPassword()});
         view.closeDialog();
     }
 
     @Override
     public void onCredentialsChanged() {
-        view.setEnabledLogInButton(!isNullOrEmpty(view.getUserName()) && !isNullOrEmpty(view.getPassword()));
+        view.setEnabledAuthenticateButton(!isNullOrEmpty(view.getUserName()) && !isNullOrEmpty(view.getPassword()));
     }
 }

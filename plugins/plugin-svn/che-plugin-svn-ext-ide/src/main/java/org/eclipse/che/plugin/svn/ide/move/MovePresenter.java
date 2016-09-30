@@ -22,6 +22,7 @@ import org.eclipse.che.ide.api.notification.NotificationManager;
 import org.eclipse.che.ide.api.notification.StatusNotification;
 import org.eclipse.che.ide.api.resources.Project;
 import org.eclipse.che.ide.api.resources.Resource;
+import org.eclipse.che.ide.api.subversion.SubversionCredentialsDialog;
 import org.eclipse.che.ide.extension.machine.client.processes.panel.ProcessesPanelPresenter;
 import org.eclipse.che.ide.resource.Path;
 import org.eclipse.che.ide.util.Arrays;
@@ -33,10 +34,12 @@ import org.eclipse.che.plugin.svn.ide.common.SubversionOutputConsoleFactory;
 import org.eclipse.che.plugin.svn.shared.CLIOutputResponse;
 
 import static com.google.common.base.Preconditions.checkState;
+import static org.eclipse.che.api.core.ErrorCodes.UNAUTHORIZED_SVN_OPERATION;
 import static org.eclipse.che.ide.api.notification.StatusNotification.DisplayMode.FLOAT_MODE;
 import static org.eclipse.che.ide.api.notification.StatusNotification.Status.FAIL;
 import static org.eclipse.che.ide.api.notification.StatusNotification.Status.PROGRESS;
 import static org.eclipse.che.ide.api.notification.StatusNotification.Status.SUCCESS;
+import static org.eclipse.che.ide.util.ExceptionUtils.getErrorCode;
 
 /**
  * Presenter for the {@link MoveView}.
@@ -46,16 +49,19 @@ import static org.eclipse.che.ide.api.notification.StatusNotification.Status.SUC
 @Singleton
 public class MovePresenter extends SubversionActionPresenter implements MoveView.ActionDelegate {
 
-    private MoveView                                 view;
-    private SubversionExtensionLocalizationConstants locale;
-    private NotificationManager                      notificationManager;
-    private SubversionClientService                  service;
-    private Project                                  project;
-    private Resource                                 source;
+    private final MoveView                                 view;
+    private final SubversionExtensionLocalizationConstants locale;
+    private final SubversionCredentialsDialog              subversionCredentialsDialog;
+    private final NotificationManager                      notificationManager;
+    private final SubversionClientService                  service;
+
+    private Project  project;
+    private Resource source;
 
     @Inject
     public MovePresenter(AppContext appContext,
                          SubversionOutputConsoleFactory consoleFactory,
+                         SubversionCredentialsDialog subversionCredentialsDialog,
                          ProcessesPanelPresenter processesPanelPresenter,
                          MoveView view,
                          NotificationManager notificationManager,
@@ -63,6 +69,7 @@ public class MovePresenter extends SubversionActionPresenter implements MoveView
                          SubversionExtensionLocalizationConstants locale,
                          StatusColors statusColors) {
         super(appContext, consoleFactory, processesPanelPresenter, statusColors);
+        this.subversionCredentialsDialog = subversionCredentialsDialog;
         this.notificationManager = notificationManager;
         this.service = service;
 
@@ -98,14 +105,17 @@ public class MovePresenter extends SubversionActionPresenter implements MoveView
         checkState(project != null);
 
         final Path source = getSource();
-        final Path target = getTarget();
         final String comment = view.isURLSelected() ? view.getComment() : null;
 
         final StatusNotification notification =
                 new StatusNotification(locale.moveNotificationStarted(source.toString()), PROGRESS, FLOAT_MODE);
         notificationManager.notify(notification);
 
-        service.move(project.getLocation(), source, target, comment).then(new Operation<CLIOutputResponse>() {
+        onMoveClicked(notification, source, comment, null, null);
+    }
+
+    private void onMoveClicked(final StatusNotification notification, final Path source, final String comment, final String userName, final String password) {
+        service.move(project.getLocation(), source, getTarget(), comment, userName, password).then(new Operation<CLIOutputResponse>() {
             @Override
             public void apply(CLIOutputResponse response) throws OperationException {
                 notification.setTitle(locale.moveNotificationSuccessful());
@@ -113,7 +123,25 @@ public class MovePresenter extends SubversionActionPresenter implements MoveView
             }
         }).catchError(new Operation<PromiseError>() {
             @Override
-            public void apply(PromiseError arg) throws OperationException {
+            public void apply(PromiseError error) throws OperationException {
+                if (getErrorCode(error.getCause()) == UNAUTHORIZED_SVN_OPERATION) {
+                    notificationManager.notify(locale.authenticationFailed(), FAIL, FLOAT_MODE);
+
+                    subversionCredentialsDialog.askCredentials().then(new Operation<String[]>() {
+                        @Override
+                        public void apply(String[] credentials) throws OperationException {
+                            onMoveClicked(notification, source, comment, credentials[0], credentials[1]);
+                        }
+                    }).catchError(new Operation<PromiseError>() {
+                        @Override
+                        public void apply(PromiseError error) throws OperationException {
+                            notificationManager.notify(error.getMessage(), FAIL, FLOAT_MODE);
+                        }
+                    });
+                } else {
+                    notification.setTitle(locale.moveNotificationFailed());
+                    notification.setStatus(FAIL);
+                }
                 notification.setTitle(locale.moveNotificationFailed());
                 notification.setStatus(FAIL);
             }

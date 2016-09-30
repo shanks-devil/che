@@ -8,26 +8,26 @@
  * Contributors:
  *   Codenvy, S.A. - initial API and implementation
  *******************************************************************************/
-package org.eclipse.che.plugin.svn.ide.authenticator;
+package org.eclipse.che.plugin.svn.ide.credentialsdialog;
 
 import com.google.inject.ImplementedBy;
 
 import org.eclipse.che.ide.api.mvp.View;
 
 /**
- * The view of {@link SubversionAuthenticatorImpl}.
+ * The view of {@link SubversionCredentialsDialogImpl}.
  *
  * @author Igor Vinokur
  */
-@ImplementedBy(SubversionAuthenticatorViewImpl.class)
-interface SubversionAuthenticatorView extends View<SubversionAuthenticatorView.ActionDelegate> {
+@ImplementedBy(SubversionCredentialsDialogViewImpl.class)
+interface SubversionCredentialsDialogView extends View<SubversionCredentialsDialogView.ActionDelegate> {
 
     interface ActionDelegate {
         /** Performs any actions appropriate in response to the user clicks cancel button. */
         void onCancelClicked();
 
-        /** Performs any actions appropriate in response to the user clicks Log In button. */
-        void onLogInClicked();
+        /** Performs any actions appropriate in response to the user clicks Authenticate button. */
+        void onAuthenticateClicked();
 
         /** Performs any actions appropriate in response to the user having changed the user name or password */
         void onCredentialsChanged();
@@ -42,8 +42,8 @@ interface SubversionAuthenticatorView extends View<SubversionAuthenticatorView.A
     /** Clean username and password fields. */
     void cleanCredentials();
 
-    /** Enable or disable Log In button. */
-    void setEnabledLogInButton(boolean enabled);
+    /** Enable or disable Authenticate button. */
+    void setEnabledAuthenticateButton(boolean enabled);
 
     /** Show dialog. */
     void showDialog();

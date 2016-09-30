@@ -23,7 +23,6 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
 import java.io.IOException;
-import java.util.Map;
 
 import org.eclipse.che.plugin.svn.shared.CheckoutRequest;
 
@@ -73,16 +72,12 @@ public class SubversionProjectImporter implements ProjectImporter {
                                   + "It is not a folder.");
         }
 
-        Map<String, String> parameters = sourceStorage.getParameters();
         this.subversionApi.setOutputLineConsumerFactory(lineConsumerFactory);
         subversionApi.checkout(newDto(CheckoutRequest.class)
                                        .withProjectPath(baseFolder.getVirtualFile().toIoFile().getAbsolutePath())
                                        .withUrl(sourceStorage.getLocation())
-                                       .withUserName(parameters.get("username"))
-                                       .withPassword(parameters.get("password")));
-
-        sourceStorage.getParameters().remove("username");
-        sourceStorage.getParameters().remove("password");
+                                       .withUserName(sourceStorage.getParameters().remove("userName"))
+                                       .withPassword(sourceStorage.getParameters().remove("password")));
     }
 
     @Override

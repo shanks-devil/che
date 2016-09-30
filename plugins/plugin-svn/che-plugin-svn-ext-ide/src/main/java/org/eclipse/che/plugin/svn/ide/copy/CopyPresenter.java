@@ -23,6 +23,7 @@ import org.eclipse.che.ide.api.notification.NotificationManager;
 import org.eclipse.che.ide.api.notification.StatusNotification;
 import org.eclipse.che.ide.api.resources.Project;
 import org.eclipse.che.ide.api.resources.Resource;
+import org.eclipse.che.ide.api.subversion.SubversionCredentialsDialog;
 import org.eclipse.che.ide.extension.machine.client.processes.panel.ProcessesPanelPresenter;
 import org.eclipse.che.ide.resource.Path;
 import org.eclipse.che.ide.util.RegExpUtils;
@@ -34,10 +35,12 @@ import org.eclipse.che.plugin.svn.ide.common.SubversionActionPresenter;
 import org.eclipse.che.plugin.svn.ide.common.SubversionOutputConsoleFactory;
 import org.eclipse.che.plugin.svn.shared.CLIOutputResponse;
 
+import static org.eclipse.che.api.core.ErrorCodes.UNAUTHORIZED_SVN_OPERATION;
 import static org.eclipse.che.ide.api.notification.StatusNotification.DisplayMode.FLOAT_MODE;
 import static org.eclipse.che.ide.api.notification.StatusNotification.Status.FAIL;
 import static org.eclipse.che.ide.api.notification.StatusNotification.Status.PROGRESS;
 import static org.eclipse.che.ide.api.notification.StatusNotification.Status.SUCCESS;
+import static org.eclipse.che.ide.util.ExceptionUtils.getErrorCode;
 
 /**
  * Presenter for the {@link CopyView}.
@@ -47,18 +50,21 @@ import static org.eclipse.che.ide.api.notification.StatusNotification.Status.SUC
 @Singleton
 public class CopyPresenter extends SubversionActionPresenter implements CopyView.ActionDelegate {
 
-    private       CopyView                                 view;
-    private       NotificationManager                      notificationManager;
-    private       SubversionClientService                  service;
-    private       SubversionExtensionLocalizationConstants constants;
-    private       Resource                     sourceNode;
+    private final SubversionCredentialsDialog              subversionCredentialsDialog;
+    private final CopyView                                 view;
+    private final NotificationManager                      notificationManager;
+    private final SubversionClientService                  service;
+    private final SubversionExtensionLocalizationConstants constants;
 
     private RegExp urlRegExp = RegExp.compile("^(https?|ftp)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]");
+
+    private Resource sourceNode;
     private Resource target;
 
     @Inject
     protected CopyPresenter(AppContext appContext,
                             SubversionOutputConsoleFactory consoleFactory,
+                            SubversionCredentialsDialog subversionCredentialsDialog,
                             ProcessesPanelPresenter processesPanelPresenter,
                             CopyView view,
                             NotificationManager notificationManager,
@@ -66,6 +72,7 @@ public class CopyPresenter extends SubversionActionPresenter implements CopyView
                             SubversionExtensionLocalizationConstants constants,
                             StatusColors statusColors) {
         super(appContext, consoleFactory, processesPanelPresenter, statusColors);
+        this.subversionCredentialsDialog = subversionCredentialsDialog;
         this.view = view;
         this.notificationManager = notificationManager;
         this.service = service;
@@ -104,6 +111,10 @@ public class CopyPresenter extends SubversionActionPresenter implements CopyView
     /** {@inheritDoc} */
     @Override
     public void onCopyClicked() {
+        onCopyClicked(null, null);
+    }
+
+    private void onCopyClicked(String userName, String password) {
         final Project project = appContext.getRootProject();
 
         Preconditions.checkState(project != null);
@@ -112,12 +123,13 @@ public class CopyPresenter extends SubversionActionPresenter implements CopyView
         final Path target = view.isTargetCheckBoxSelected() ? Path.valueOf(view.getTargetUrl()) : toRelative(project, this.target);
         final String comment = view.isTargetCheckBoxSelected() ? view.getComment() : null;
 
-        final StatusNotification notification = new StatusNotification(constants.copyNotificationStarted(src.toString()), PROGRESS, FLOAT_MODE);
+        final StatusNotification notification =
+                new StatusNotification(constants.copyNotificationStarted(src.toString()), PROGRESS, FLOAT_MODE);
         notificationManager.notify(notification);
 
         view.hide();
 
-        service.copy(project.getLocation(), src, target, comment).then(new Operation<CLIOutputResponse>() {
+        service.copy(project.getLocation(), src, target, comment, userName, password).then(new Operation<CLIOutputResponse>() {
             @Override
             public void apply(CLIOutputResponse response) throws OperationException {
                 printResponse(response.getCommand(), response.getOutput(), response.getErrOutput(), constants.commandCopy());
@@ -128,8 +140,25 @@ public class CopyPresenter extends SubversionActionPresenter implements CopyView
         }).catchError(new Operation<PromiseError>() {
             @Override
             public void apply(PromiseError error) throws OperationException {
-                notification.setTitle(constants.copyNotificationFailed());
-                notification.setStatus(FAIL);
+                if (getErrorCode(error.getCause()) == UNAUTHORIZED_SVN_OPERATION) {
+                    notificationManager.notify(constants.authenticationFailed(), FAIL, FLOAT_MODE);
+
+                    subversionCredentialsDialog.askCredentials().then(new Operation<String[]>() {
+                        @Override
+                        public void apply(String[] credentials) throws OperationException {
+                            onCopyClicked(credentials[0], credentials[1]);
+                        }
+                    }).catchError(new Operation<PromiseError>() {
+                        @Override
+                        public void apply(PromiseError error) throws OperationException {
+                            notification.setTitle(constants.copyNotificationFailed());
+                            notification.setStatus(FAIL);
+                        }
+                    });
+                } else {
+                    notification.setTitle(constants.copyNotificationFailed());
+                    notification.setStatus(FAIL);
+                }
             }
         });
     }

@@ -8,7 +8,7 @@
  * Contributors:
  *   Codenvy, S.A. - initial API and implementation
  *******************************************************************************/
-package org.eclipse.che.plugin.svn.ide.authenticator;
+package org.eclipse.che.plugin.svn.ide.credentialsdialog;
 
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.event.dom.client.ClickEvent;
@@ -26,14 +26,16 @@ import org.eclipse.che.ide.ui.window.Window;
 import org.eclipse.che.plugin.svn.ide.SubversionExtensionLocalizationConstants;
 
 /**
+ * Implementation of {@link SubversionCredentialsDialogView}
+ *
  * @author Igor Vinokur
  */
-public class SubversionAuthenticatorViewImpl extends Window implements SubversionAuthenticatorView {
+public class SubversionCredentialsDialogViewImpl extends Window implements SubversionCredentialsDialogView {
 
     @UiField(provided = true)
     final SubversionExtensionLocalizationConstants locale;
 
-    interface SubversionAuthenticatorImplUiBinder extends UiBinder<Widget, SubversionAuthenticatorViewImpl> {
+    interface SubversionAuthenticatorImplUiBinder extends UiBinder<Widget, SubversionCredentialsDialogViewImpl> {
     }
 
     private static SubversionAuthenticatorImplUiBinder uiBinder = GWT.create(SubversionAuthenticatorImplUiBinder.class);
@@ -45,29 +47,29 @@ public class SubversionAuthenticatorViewImpl extends Window implements Subversio
     @UiField
     TextBox passwordTextBox;
 
-    private final Button loginButton;
+    private final Button authenticateButton;
 
     @Inject
-    public SubversionAuthenticatorViewImpl(SubversionExtensionLocalizationConstants locale) {
+    public SubversionCredentialsDialogViewImpl(SubversionExtensionLocalizationConstants locale) {
         this.locale = locale;
         Widget widget = uiBinder.createAndBindUi(this);
         this.setWidget(widget);
-        this.setTitle(locale.authenticatorTitle());
+        this.setTitle(locale.credentialsDialogTitle());
 
-        loginButton = createPrimaryButton(locale.authenticatorLoginButton(), "svn-authentication-username", new ClickHandler() {
+        authenticateButton = createPrimaryButton(locale.credentialsDialogAuthenticateButton(), "svn-authentication-username", new ClickHandler() {
             @Override
             public void onClick(ClickEvent event) {
-                delegate.onLogInClicked();
+                delegate.onAuthenticateClicked();
             }
         });
-        Button cancelButton = createButton(locale.authenticatorCancelButton(), "svn-authentication-password", new ClickHandler() {
+        Button cancelButton = createButton(locale.credentialsDialogCancelButton(), "svn-authentication-password", new ClickHandler() {
             @Override
             public void onClick(ClickEvent event) {
                 delegate.onCancelClicked();
             }
         });
 
-        addButtonToFooter(loginButton);
+        addButtonToFooter(authenticateButton);
         addButtonToFooter(cancelButton);
     }
 
@@ -95,7 +97,7 @@ public class SubversionAuthenticatorViewImpl extends Window implements Subversio
     public void cleanCredentials() {
         userNameTextBox.setText("");
         passwordTextBox.setText("");
-        setEnabledLogInButton(false);
+        setEnabledAuthenticateButton(false);
     }
 
     @UiHandler({"userNameTextBox", "passwordTextBox"})
@@ -104,8 +106,8 @@ public class SubversionAuthenticatorViewImpl extends Window implements Subversio
     }
 
     @Override
-    public void setEnabledLogInButton(boolean enabled) {
-        loginButton.setEnabled(enabled);
+    public void setEnabledAuthenticateButton(boolean enabled) {
+        authenticateButton.setEnabled(enabled);
     }
 
     @Override

@@ -81,6 +81,9 @@ public interface SubversionExtensionLocalizationConstants extends Messages {
     @Key("action.not.implemented")
     String actionNotImplemented();
 
+    @Key("svn.authentication.failed")
+    String authenticationFailed();
+
     @Key("add.description")
     String addDescription();
 
@@ -581,21 +584,21 @@ public interface SubversionExtensionLocalizationConstants extends Messages {
     @Key("move.item.child.detect")
     String moveItemChildDetected();
 
-    /* Authenticator dialog */
-    @Key("authenticator.title")
-    String authenticatorTitle();
+    /* Credentials dialog */
+    @Key("credentials.dialog.title")
+    String credentialsDialogTitle();
 
-    @Key("authenticator.username")
-    String authenticatorUserName();
+    @Key("credentials.dialog.username")
+    String credentialsDialogUserName();
 
-    @Key("authenticator.password")
-    String authenticatorPassword();
+    @Key("credentials.dialog.password")
+    String credentialsDialogPassword();
 
-    @Key("authenticator.login.button")
-    String authenticatorLoginButton();
+    @Key("credentials.dialog.authenticate.button")
+    String credentialsDialogAuthenticateButton();
 
-    @Key("authenticator.cancel.button")
-    String authenticatorCancelButton();
+    @Key("credentials.dialog.cancel.button")
+    String credentialsDialogCancelButton();
 
     /** Property */
     @Key("property.modify.start")
