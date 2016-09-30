@@ -54,7 +54,9 @@ export class WorkspaceEnvironmentsController {
     $scope.$watch(() => {
       return this.workspaceConfig.environments;
     }, () => {
-      this.init();
+      if (Object.keys(this.workspaceConfig.environments).length > 0) {
+        this.init();
+      }
     });
   }
 

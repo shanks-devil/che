@@ -70,12 +70,38 @@ export class ComposeEnvironmentManager extends EnvironmentManager {
    * @returns {object} recipe object
    */
   _parseRecipe(content) {
-    let recipe = {};
+    let recipe = null;
     try {
-      recipe = jsyaml.load(content);
+      recipe = this._validate(jsyaml.load(content));
     } catch (e) {
       this.$log.error(e);
     }
+    return recipe;
+  }
+
+  /**
+   * TODO
+   *
+   * @param recipe
+   * @private
+   */
+  _validate(recipe) {
+    if (!recipe.services) {
+      throw new Error('Recipe should contain one or more services.');
+    }
+
+    let machines: any = Object.keys(recipe.services);
+    if (machines.includes('dev-machine') === false) {
+      throw new Error('Recipe should contain the service named \'dev-machine\'.');
+    }
+
+    machines.forEach((machineName) => {
+      let machineFields: any = Object.keys(recipe.services[machineName] || {});
+      if (!machineFields || (machineFields.includes('build') === false && machineFields.includes('image') === false)) {
+        throw new Error('Service \'' + machineName + '\' should contain \'build\' or \'image\' section.');
+      }
+    });
+
     return recipe;
   }
 
@@ -110,7 +136,11 @@ export class ComposeEnvironmentManager extends EnvironmentManager {
 
     if (environment.recipe.content) {
       recipe = this._parseRecipe(environment.recipe.content);
-      machineNames = Object.keys(recipe.services);
+      if (recipe) {
+        machineNames = Object.keys(recipe.services);
+      } else {
+        machineNames = Object.keys(environment.machines);
+      }
     } else {
       machineNames = Object.keys(environment.machines);
     }
@@ -144,18 +174,24 @@ export class ComposeEnvironmentManager extends EnvironmentManager {
     if (newEnvironment.recipe.content) {
       let recipe = this._parseRecipe(newEnvironment.recipe.content);
 
-      machines.forEach((machine) => {
-        let machineName = machine.name;
-        if (machine.recipe.environment && Object.keys(machine.recipe.environment).length) {
-          recipe.services[machineName].environment = angular.copy(machine.recipe.environment);
-        } else {
-          delete recipe.services[machineName].environment;
+      if (recipe) {
+        machines.forEach((machine) => {
+          let machineName = machine.name;
+          if (!recipe.services[machineName]) {
+            return;
+          }
+          if (machine.recipe.environment && Object.keys(machine.recipe.environment).length) {
+            recipe.services[machineName].environment = angular.copy(machine.recipe.environment);
+          } else {
+            delete recipe.services[machineName].environment;
+          }
+        });
+
+        try {
+          newEnvironment.recipe.content = this._stringifyRecipe(recipe);
+        } catch (e) {
+          this.$log.error('Cannot retrieve environment\'s recipe, error: ', e);
         }
-      });
-      try {
-        newEnvironment.recipe.content = this._stringifyRecipe(recipe);
-      } catch (e) {
-        this.$log.error('Cannot retrieve environment\'s recipe, error: ', e);
       }
     }
 

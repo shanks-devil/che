@@ -78,7 +78,7 @@ export class WorkspaceRecipeController {
     }
 
     //docker file format detection
-    if (content.match(/^FROM /m)) {
+    if (content.match(/^FROM\s+\w+/m)) {
       this.recipeFormat = 'dockerfile';
       this.editorOptions.mode = 'text/x-dockerfile';
     }

@@ -55,7 +55,7 @@ export class DockerFileEnvironmentManager extends EnvironmentManager {
    * @private
    */
   _parseRecipe(content) {
-    let recipe = [];
+    let recipe = null;
     try {
       recipe = this.parser.parse(content);
     } catch (e) {

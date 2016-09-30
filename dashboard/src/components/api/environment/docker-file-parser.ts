@@ -37,6 +37,10 @@ export class DockerfileParser {
    * @returns {Array}
    */
   parse(content) {
+    if (!/^FROM\s+\w+/m.test(content)) {
+      throw new TypeError('Dockerfile should start with \'FROM\' instruction. Cannot parse this recipe.');
+    }
+
     // join multiline instructions
     content = this._joinMultilineInstructions(content);
 

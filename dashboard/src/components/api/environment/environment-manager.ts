@@ -103,7 +103,7 @@ export class EnvironmentManager {
   }
 
   getAgents(machine) {
-    return machine.agents || {};
+    return machine.agents || [];
   }
 
   setAgents(machine, agents) {

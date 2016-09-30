@@ -1,0 +1,9 @@
+<che-label-container che-label-name="Select Stack"
+                     che-label-description="Stacks are recipes or images used to define your environment runtime. Workspace environments are used to build and run your project.">
+  <che-workspace-select-stack
+    che-on-tab-change="workspaceStacksController.setStackTab(tabName)"
+    che-stack-change="workspaceStacksController.cheStackLibrarySelecter(stack)"
+    che-recipe-script="workspaceStacksController.recipeScript"
+    che-recipe-url="workspaceStacksController.recipeUrl"
+    che-recipe-format="workspaceStacksController.recipeFormat"/>
+</che-label-container>

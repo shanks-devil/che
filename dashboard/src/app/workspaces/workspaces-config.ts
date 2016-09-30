@@ -15,6 +15,9 @@ import {CheWorkspaceItem} from './list-workspaces/workspace-item/workspace-item.
 import {CheWorkspaceStatus} from './list-workspaces/workspace-status-action/workspace-status.directive';
 import {WorkspaceStatusController} from './list-workspaces/workspace-status-action/workspace-status.controller';
 import {CreateWorkspaceController} from './create-workspace/create-workspace.controller';
+import {CreateEditWorkspaceController} from './create-edit-workspace/create-edit-workspace.controller';
+import {WorkspaceStacksController} from './create-edit-workspace/workspace-stacks/workspace-stacks.controller';
+import {WorkspaceStacks} from './create-edit-workspace/workspace-stacks/workspace-stacks.directive';
 import {UsageChart} from './list-workspaces/workspace-item/usage-chart.directive';
 import {WorkspaceItemCtrl} from './list-workspaces/workspace-item/workspace-item.controller';
 import {WorkspaceEditModeOverlay} from './workspace-edit-mode/workspace-edit-mode-overlay.directive';
@@ -79,6 +82,9 @@ export class WorkspacesConfig {
 
     register.controller('ListWorkspacesCtrl', ListWorkspacesCtrl);
     register.controller('CreateWorkspaceController', CreateWorkspaceController);
+    register.controller('CreateEditWorkspaceController', CreateEditWorkspaceController);
+    register.controller('WorkspaceStacksController', WorkspaceStacksController);
+    register.directive('workspaceStacks', WorkspaceStacks);
 
     register.directive('cheWorkspaceItem', CheWorkspaceItem);
     register.controller('WorkspaceItemCtrl', WorkspaceItemCtrl);
@@ -144,9 +150,9 @@ export class WorkspacesConfig {
 
     let locationProvider = {
       title: (params) => { return params.workspaceName;},
-      templateUrl: 'app/workspaces/workspace-details/workspace-details.html',
-      controller: 'WorkspaceDetailsController',
-      controllerAs: 'workspaceDetailsCtrl'
+      templateUrl: 'app/workspaces/create-edit-workspace/create-edit-workspace.html',
+      controller: 'CreateEditWorkspaceController',
+      controllerAs: 'createEditWorkspaceController'
     };
 
     // config routes
@@ -160,11 +166,11 @@ export class WorkspacesConfig {
       .accessWhen('/workspace/:namespace/:workspaceName', locationProvider)
       .accessWhen('/workspace/:namespace/:workspaceName/:page', locationProvider)
       .accessWhen('/create-workspace', {
-          title: 'New Workspace',
-          templateUrl: 'app/workspaces/create-workspace/create-workspace.html',
-          controller: 'CreateWorkspaceController',
-          controllerAs: 'createWorkspaceCtrl'
-        });
+        title: 'New Workspace',
+        templateUrl: 'app/workspaces/create-edit-workspace/create-edit-workspace.html',
+        controller: 'CreateEditWorkspaceController',
+        controllerAs: 'createEditWorkspaceController'
+      });
     });
   }
 }
