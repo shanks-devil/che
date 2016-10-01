@@ -32,7 +32,7 @@ public class WorkspaceTckModule extends TckModule {
     @Override
     protected void configure() {
         install(new JpaPersistModule("main"));
-        bind(JpaInitializer.class).asEagerSingleton();
+        bind(JpaInitializer.class).to(org.eclipse.che.api.core.jdbc.jpa.guice.DefaultJpaInitializer.class).asEagerSingleton();
         bind(EntityListenerInjectionManagerInitializer.class).asEagerSingleton();
         bind(org.eclipse.che.api.core.h2.jdbc.jpa.eclipselink.H2ExceptionHandler.class);
 

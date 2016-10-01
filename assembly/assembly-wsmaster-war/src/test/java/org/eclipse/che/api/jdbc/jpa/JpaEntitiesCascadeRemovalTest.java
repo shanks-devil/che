@@ -42,7 +42,6 @@ import org.eclipse.che.api.user.server.model.impl.UserImpl;
 import org.eclipse.che.api.user.server.spi.PreferenceDao;
 import org.eclipse.che.api.user.server.spi.ProfileDao;
 import org.eclipse.che.api.user.server.spi.UserDao;
-import org.eclipse.che.api.workspace.server.jpa.JpaWorkspaceDao;
 import org.eclipse.che.api.workspace.server.jpa.JpaWorkspaceDao.RemoveSnapshotsBeforeWorkspaceRemovedEventSubscriber;
 import org.eclipse.che.api.workspace.server.jpa.JpaWorkspaceDao.RemoveWorkspaceBeforeAccountRemovedEventSubscriber;
 import org.eclipse.che.api.workspace.server.jpa.WorkspaceJpaModule;
@@ -126,7 +125,7 @@ public class JpaEntitiesCascadeRemovalTest {
             protected void configure() {
                 bind(EventService.class).in(Singleton.class);
 
-                bind(JpaInitializer.class).asEagerSingleton();
+                bind(JpaInitializer.class).to(org.eclipse.che.api.core.jdbc.jpa.guice.DefaultJpaInitializer.class).asEagerSingleton();
                 bind(EntityListenerInjectionManagerInitializer.class).asEagerSingleton();
                 install(new InitModule(PostConstruct.class));
                 install(new JpaPersistModule("test"));

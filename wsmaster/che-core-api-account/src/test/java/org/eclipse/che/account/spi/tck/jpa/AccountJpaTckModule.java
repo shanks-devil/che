@@ -29,7 +29,7 @@ public class AccountJpaTckModule extends TckModule {
     @Override
     protected void configure() {
         install(new JpaPersistModule("main"));
-        bind(JpaInitializer.class).asEagerSingleton();
+        bind(JpaInitializer.class).to(org.eclipse.che.api.core.jdbc.jpa.guice.DefaultJpaInitializer.class).asEagerSingleton();
         bind(EntityListenerInjectionManagerInitializer.class).asEagerSingleton();
         bind(new TypeLiteral<TckRepository<AccountImpl>>() {}).toInstance(new JpaTckRepository<>(AccountImpl.class));
 
