@@ -34,7 +34,7 @@ public class SshTckModule extends TckModule {
         bind(new TypeLiteral<TckRepository<UserImpl>>(){}).toInstance(new JpaTckRepository<>(UserImpl.class));
 
         install(new JpaPersistModule("main"));
-        bind(JpaInitializer.class).asEagerSingleton();
+        bind(JpaInitializer.class).to(org.eclipse.che.api.core.jdbc.jpa.guice.DefaultJpaInitializer.class).asEagerSingleton();
         bind(EntityListenerInjectionManagerInitializer.class).asEagerSingleton();
         bind(org.eclipse.che.api.core.h2.jdbc.jpa.eclipselink.H2ExceptionHandler.class);
     }

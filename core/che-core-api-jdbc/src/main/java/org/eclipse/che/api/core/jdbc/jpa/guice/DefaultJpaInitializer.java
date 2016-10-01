@@ -10,11 +10,20 @@
  *******************************************************************************/
 package org.eclipse.che.api.core.jdbc.jpa.guice;
 
+import com.google.inject.Inject;
+import com.google.inject.persist.PersistService;
+
+
 /**
- * Marker interface for JPA based implementation
- * that perform the initialization process.
+ * Should be bound as eager singleton.
+ * See <a href="https://github.com/google/guice/wiki/JPA">doc</a>
  *
- * @author Anton Korneta.
+ * @author Yevhenii Voevodin
  */
-public interface JpaInitializer {
+public class DefaultJpaInitializer implements JpaInitializer {
+
+    @Inject
+    public DefaultJpaInitializer(PersistService persistService) {
+        persistService.start();
+    }
 }
